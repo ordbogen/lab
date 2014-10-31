@@ -10,6 +10,10 @@ Gitlab command line tool
 
 TODO
 
+## IDEAS
+
+- Fancy rendering/interactivity via [github.com/nsf/termbox-go](https://github.com/nsf/termbox-go)
+
 ## LICENSE
  
 ```
