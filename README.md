@@ -8,11 +8,31 @@ Gitlab command line tool
 
 ## USAGE
 
-TODO
+```
+$ lab mr
+
+# NAME:
+#    lab merge-request - do something with merge requests
+# 
+# USAGE:
+#    lab merge-request command [command options] [arguments...]
+# 
+# COMMANDS:
+#    list		list merge requests
+#    create	create a merge request
+#    accept	accept merge request by the current branch
+#    help, h	Shows a list of commands or help for one command
+#    
+# OPTIONS:
+#    --help, -h	show help
+   
+```
 
 ## IDEAS
 
 - Fancy rendering/interactivity via [github.com/nsf/termbox-go](https://github.com/nsf/termbox-go)
+- Use goconvey for testing
+- Web interface
 
 ## LICENSE
  
