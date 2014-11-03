@@ -6,6 +6,13 @@ Gitlab command line tool
 
 `$ go get -u github.com/educas/lab`
 
+Export your gitlab private token as environment variable: `LAB_PRIVATE_TOKEN`
+
+```bash
+# Get from gitlab.server.com/profile/account
+$ export LAB_PRIVATE_TOKEN my-private-token
+```
+
 ## USAGE
 
 ```

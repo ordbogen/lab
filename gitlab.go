@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -62,7 +61,6 @@ func (g gitlab) queryMergeRequests(projectId string, state string) ([]mergeReque
 	}
 	addr := g.getApiUrl("projects", url.QueryEscape(projectId), "merge_requests") + "&state=" + state
 
-	log.Println(addr)
 	req, err := http.NewRequest("GET", addr, nil)
 	req.URL = &url.URL{
 		Scheme: g.scheme,
