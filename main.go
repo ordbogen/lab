@@ -86,6 +86,11 @@ func main() {
 		},
 	}
 
+	mergeRequestFlags := append(flags, cli.StringFlag{
+		Name:  "state",
+		Value: "opened",
+	})
+
 	app.Commands = []cli.Command{
 		{
 			Name:  "browse",
@@ -105,19 +110,20 @@ func main() {
 				{
 					Name:  "browse",
 					Usage: "Browse the current merge request.",
-					Flags: flags,
+					Flags: mergeRequestFlags,
 					Action: func(c *cli.Context) {
 						_ = needToken(c)
 						server := needGitlab(c)
 						remoteUrl := needRemoteUrl(c)
 						gitDir := needGitDir(c)
+						state := c.String("state")
 
 						currentBranch, err := gitDir.getCurrentBranch()
 						if nil != err {
 							log.Fatal(err)
 						}
 
-						mergeRequests, err := server.querymergeRequests(remoteUrl.path)
+						mergeRequests, err := server.queryMergeRequests(remoteUrl.path, state)
 						if nil != err {
 							log.Fatal(err)
 						}
@@ -135,11 +141,12 @@ func main() {
 				{
 					Name:  "list",
 					Usage: "list merge requests",
-					Flags: flags,
+					Flags: mergeRequestFlags,
 					Action: func(c *cli.Context) {
 						_ = needToken(c)
 						server := needGitlab(c)
 						remoteUrl := needRemoteUrl(c)
+						state := c.String("state")
 
 						format := c.String("format")
 						if format == "" {
@@ -151,7 +158,7 @@ func main() {
 							return
 						}
 
-						mergeRequests, err := server.querymergeRequests(remoteUrl.path)
+						mergeRequests, err := server.queryMergeRequests(remoteUrl.path, state)
 						if nil != err {
 							log.Fatal(err)
 						}

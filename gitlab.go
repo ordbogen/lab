@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -18,6 +19,8 @@ type mergeRequest struct {
 	SourceBranch string `json:"source_branch"`
 	TargetBranch string `json:"target_branch"`
 }
+
+const MERGE_REQUEST_STATE_OPENED string = "opened"
 
 type gitlab struct {
 	scheme  string
@@ -52,15 +55,20 @@ func (g gitlab) browseMergeRequest(projectId string, mergeRequestId int) {
 	exec.Command("xdg-open", g.scheme+"://"+g.host+"/"+projectId+"/merge_requests/"+strconv.Itoa(mergeRequestId)).Run()
 }
 
-func (g gitlab) querymergeRequests(projectId string) ([]mergeRequest, error) {
-	addr := g.getApiUrl("projects", url.QueryEscape(projectId), "merge_requests")
+func (g gitlab) queryMergeRequests(projectId string, state string) ([]mergeRequest, error) {
 
+	if state == "" {
+		state = MERGE_REQUEST_STATE_OPENED
+	}
+	addr := g.getApiUrl("projects", url.QueryEscape(projectId), "merge_requests") + "&state=" + state
+
+	log.Println(addr)
 	req, err := http.NewRequest("GET", addr, nil)
 	req.URL = &url.URL{
 		Scheme: g.scheme,
 		Host:   g.host,
 		// Use opaque url to preserve "%2F"
-		Opaque: g.getOpaqueApiUrl("projects", url.QueryEscape(projectId), "merge_requests") + "&state=opened",
+		Opaque: g.getOpaqueApiUrl("projects", url.QueryEscape(projectId), "merge_requests") + "&state=" + state,
 	}
 
 	client := http.Client{}
