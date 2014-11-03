@@ -58,6 +58,43 @@ func main() {
 			Usage:     "do something with merge requests",
 			Subcommands: []cli.Command{
 				{
+					Name:  "browse",
+					Usage: "Browse the current merge request.",
+					Flags: flags,
+					Action: func(c *cli.Context) {
+						remote := c.String("remote")
+						dir := getGitDir(c.String("git-dir"))
+
+						git := gitDir(dir)
+						remoteUrl, err := git.getRemoteUrl(remote)
+						if nil != err {
+							log.Fatal(err)
+						}
+						r := parseRemote(remoteUrl)
+
+						currentBranch, err := git.getCurrentBranch()
+						if nil != err {
+							log.Fatal(err)
+						}
+
+						server := newGitlab(r.base, c.String("token"))
+
+						mergeRequests, err := server.querymergeRequests(r.path)
+						if nil != err {
+							log.Fatal(err)
+						}
+
+						for _, request := range mergeRequests {
+							if request.SourceBranch == currentBranch {
+								server.browseMergeRequest(r.path, request.Iid)
+								return
+							}
+						}
+
+						log.Fatalf("Could not find merge request for branch: %s on project %s\n", currentBranch, r.path)
+					},
+				},
+				{
 					Name:  "list",
 					Usage: "list merge requests",
 					Flags: flags,

@@ -5,12 +5,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os/exec"
+	"strconv"
 	"strings"
 )
 
 type mergeRequest struct {
-	Title       string `json:title`
-	Description string `json:description`
+	Id           int    `json:"id"`
+	Iid          int    `json:"iid"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	SourceBranch string `json:"source_branch"`
+	TargetBranch string `json:"target_branch"`
 }
 
 type gitlab struct {
@@ -32,6 +38,12 @@ func (g gitlab) getOpaqueApiUrl(pathSegments ...string) string {
 	return "//" + g.host + g.apiPath + "/" + strings.Join(pathSegments, "/") + "?private_token=" + g.token
 }
 
+func (g gitlab) browseMergeRequest(projectId string, mergeRequestId int) {
+	projectId, _ = url.QueryUnescape(projectId)
+	projectId = strings.Trim(projectId, "/")
+	exec.Command("xdg-open", g.scheme+"://"+g.host+"/"+projectId+"/merge_requests/"+strconv.Itoa(mergeRequestId)).Run()
+}
+
 func (g gitlab) querymergeRequests(projectId string) ([]mergeRequest, error) {
 	addr := g.getApiUrl("projects", url.QueryEscape(projectId), "merge_requests")
 
@@ -40,7 +52,7 @@ func (g gitlab) querymergeRequests(projectId string) ([]mergeRequest, error) {
 		Scheme: g.scheme,
 		Host:   g.host,
 		// Use opaque url to preserve "%2F"
-		Opaque: g.getOpaqueApiUrl("projects", url.QueryEscape(projectId), "merge_requests"),
+		Opaque: g.getOpaqueApiUrl("projects", url.QueryEscape(projectId), "merge_requests") + "&state=opened",
 	}
 
 	client := http.Client{}
