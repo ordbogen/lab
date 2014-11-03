@@ -28,8 +28,10 @@ type gitlab struct {
 	token   string
 }
 
-func (g gitlab) browseProject(path string) {
-	exec.Command("xdg-open", g.scheme+"://"+g.host+"/"+strings.TrimPrefix(path, "/")).Run()
+func (g gitlab) browseProject(path string) string {
+	addr := g.scheme + "://" + g.host + "/" + strings.TrimPrefix(path, "/")
+	exec.Command("xdg-open", addr).Run()
+	return addr
 }
 
 func newGitlab(host, token string) gitlab {

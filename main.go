@@ -62,7 +62,7 @@ func needToken(c *cli.Context) string {
 	token := c.String("token")
 	if token == "" {
 		server := needGitlab(c)
-		log.Fatal("Could not get api token, get one from:", server.getPrivateTokenUrl())
+		log.Fatal("Could not get api token, get one from: ", server.getPrivateTokenUrl())
 	}
 
 	return token
@@ -104,7 +104,8 @@ func main() {
 			Action: func(c *cli.Context) {
 				server := needGitlab(c)
 				remote := needRemoteUrl(c)
-				server.browseProject(remote.path)
+				addr := server.browseProject(remote.path)
+				log.Printf("Opening \"%s\"...\n", addr)
 			},
 		},
 		{
