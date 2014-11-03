@@ -31,6 +31,11 @@ func getGitDir(given string) string {
 /// Get gitlab url or fail!
 func needGitlab(c *cli.Context) gitlab {
 	r := needRemoteUrl(c)
+	for _, host := range []string{"github.com", "code.google.com", "bitbucket.org"} {
+		if strings.HasSuffix(r.base, host) {
+			log.Fatalf("Gitlab server on: \"%s\"? I don't think so\n", r.base)
+		}
+	}
 	return newGitlab(r.base, c.String("token"))
 
 }
