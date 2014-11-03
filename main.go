@@ -35,11 +35,15 @@ func needGitlab(c *cli.Context) gitlab {
 
 }
 
+func needGitDir(c *cli.Context) gitDir {
+	dir := getGitDir(c.String("git-dir"))
+	return gitDir(dir)
+}
+
 /// Get remote url or fail!
 func needRemoteUrl(c *cli.Context) gitRemote {
 	remote := c.String("remote")
-	dir := getGitDir(c.String("git-dir"))
-	git := gitDir(dir)
+	git := needGitDir(c)
 	remoteUrl, err := git.getRemoteUrl(remote)
 	if nil != err {
 		log.Fatal(err)
@@ -88,31 +92,9 @@ func main() {
 			Usage: "Open project homepage",
 			Flags: flags,
 			Action: func(c *cli.Context) {
-				// TODO, cross-platform xdg-open: https://github.com/skratchdot/open-golang
-				remote := c.String("remote")
-				dir := getGitDir(c.String("git-dir"))
-
-				format := c.String("format")
-				if format == "" {
-					format = MergeRequestListTemplate
-				}
-
-				if format == "help" {
-					fmt.Println(MergeRequestListTemplate)
-					return
-				}
-
-				git := gitDir(dir)
-				remoteUrl, err := git.getRemoteUrl(remote)
-				if nil != err {
-					log.Fatal(err)
-				}
-
-				r := parseRemote(remoteUrl)
-
-				server := newGitlab(r.base, c.String("token"))
-
-				server.browseProject(r.path)
+				server := needGitlab(c)
+				remote := needRemoteUrl(c)
+				server.browseProject(remote.path)
 			},
 		},
 		{
@@ -125,36 +107,29 @@ func main() {
 					Usage: "Browse the current merge request.",
 					Flags: flags,
 					Action: func(c *cli.Context) {
-						remote := c.String("remote")
-						dir := getGitDir(c.String("git-dir"))
+						_ = needToken(c)
+						server := needGitlab(c)
+						remoteUrl := needRemoteUrl(c)
+						gitDir := needGitDir(c)
 
-						git := gitDir(dir)
-						remoteUrl, err := git.getRemoteUrl(remote)
-						if nil != err {
-							log.Fatal(err)
-						}
-						r := parseRemote(remoteUrl)
-
-						currentBranch, err := git.getCurrentBranch()
+						currentBranch, err := gitDir.getCurrentBranch()
 						if nil != err {
 							log.Fatal(err)
 						}
 
-						server := newGitlab(r.base, c.String("token"))
-
-						mergeRequests, err := server.querymergeRequests(r.path)
+						mergeRequests, err := server.querymergeRequests(remoteUrl.path)
 						if nil != err {
 							log.Fatal(err)
 						}
 
 						for _, request := range mergeRequests {
 							if request.SourceBranch == currentBranch {
-								server.browseMergeRequest(r.path, request.Iid)
+								server.browseMergeRequest(remoteUrl.path, request.Iid)
 								return
 							}
 						}
 
-						log.Fatalf("Could not find merge request for branch: %s on project %s\n", currentBranch, r.path)
+						log.Fatalf("Could not find merge request for branch: %s on project %s\n", currentBranch, remoteUrl.path)
 					},
 				},
 				{
