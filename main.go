@@ -5,7 +5,9 @@ import (
 	"github.com/codegangsta/cli"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
+	"syscall"
 	"text/template"
 )
 
@@ -26,6 +28,26 @@ func getGitDir(given string) string {
 	}
 
 	return strings.TrimSuffix(given, "/") + "/.git"
+}
+
+/// Browse a url, x or text
+func browse(url string) {
+	log.Printf("Opening \"%s\"...\n", url)
+	if os.Getenv("DISPLAY") != "" {
+		// x session
+		err := exec.Command("xdg-open", url).Run()
+		if nil == err {
+			return
+		}
+		// OSX
+		err = exec.Command("open", url).Run()
+		if nil != err {
+			log.Fatal(err)
+		}
+	} else {
+		// text
+		syscall.Exec("/usr/bin/www-browser", []string{"www-browser", url}, os.Environ())
+	}
 }
 
 /// Get gitlab url or fail!
@@ -62,7 +84,11 @@ func needToken(c *cli.Context) string {
 	token := c.String("token")
 	if token == "" {
 		server := needGitlab(c)
-		log.Fatal("Could not get api token, get one from: ", server.getPrivateTokenUrl())
+		log.Fatal(
+			"Could not get api token, get one from: \"",
+			server.getPrivateTokenUrl(),
+			"\n\nexport as LAB_PRIVATE_TOKEN or use as flag: --token <token>",
+		)
 	}
 
 	return token
@@ -104,8 +130,8 @@ func main() {
 			Action: func(c *cli.Context) {
 				server := needGitlab(c)
 				remote := needRemoteUrl(c)
-				addr := server.browseProject(remote.path)
-				log.Printf("Opening \"%s\"...\n", addr)
+				addr := server.getProjectUrl(remote.path)
+				browse(addr)
 			},
 		},
 		{
@@ -136,7 +162,7 @@ func main() {
 
 						for _, request := range mergeRequests {
 							if request.SourceBranch == currentBranch {
-								server.browseMergeRequest(remoteUrl.path, request.Iid)
+								browse(server.getMergeRequestUrl(remoteUrl.path, request.Iid))
 								return
 							}
 						}

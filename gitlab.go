@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -28,10 +27,14 @@ type gitlab struct {
 	token   string
 }
 
-func (g gitlab) browseProject(path string) string {
-	addr := g.scheme + "://" + g.host + "/" + strings.TrimPrefix(path, "/")
-	exec.Command("xdg-open", addr).Run()
-	return addr
+func (g gitlab) getProjectUrl(path string) string {
+	return g.scheme + "://" + g.host + "/" + strings.TrimPrefix(path, "/")
+}
+
+func (g gitlab) getMergeRequestUrl(projectId string, mergeRequestId int) string {
+	projectId, _ = url.QueryUnescape(projectId)
+	projectId = strings.Trim(projectId, "/")
+	return g.scheme + "://" + g.host + "/" + projectId + "/merge_requests/" + strconv.Itoa(mergeRequestId)
 }
 
 func newGitlab(host, token string) gitlab {
@@ -48,12 +51,6 @@ func (g gitlab) getApiUrl(pathSegments ...string) string {
 
 func (g gitlab) getOpaqueApiUrl(pathSegments ...string) string {
 	return "//" + g.host + g.apiPath + "/" + strings.Join(pathSegments, "/") + "?private_token=" + g.token
-}
-
-func (g gitlab) browseMergeRequest(projectId string, mergeRequestId int) {
-	projectId, _ = url.QueryUnescape(projectId)
-	projectId = strings.Trim(projectId, "/")
-	exec.Command("xdg-open", g.scheme+"://"+g.host+"/"+projectId+"/merge_requests/"+strconv.Itoa(mergeRequestId)).Run()
 }
 
 func (g gitlab) queryMergeRequests(projectId string, state string) ([]mergeRequest, error) {
