@@ -28,6 +28,37 @@ func getGitDir(given string) string {
 	return strings.TrimSuffix(given, "/") + "/.git"
 }
 
+/// Get gitlab url or fail!
+func needGitlab(c *cli.Context) gitlab {
+	r := needRemoteUrl(c)
+	return newGitlab(r.base, c.String("token"))
+
+}
+
+/// Get remote url or fail!
+func needRemoteUrl(c *cli.Context) gitRemote {
+	remote := c.String("remote")
+	dir := getGitDir(c.String("git-dir"))
+	git := gitDir(dir)
+	remoteUrl, err := git.getRemoteUrl(remote)
+	if nil != err {
+		log.Fatal(err)
+	}
+
+	return parseRemote(remoteUrl)
+}
+
+// Get token or fail!
+func needToken(c *cli.Context) string {
+	token := c.String("token")
+	if token == "" {
+		server := needGitlab(c)
+		log.Fatal("Could not get api token, get one from:", server.getPrivateTokenUrl())
+	}
+
+	return token
+}
+
 func main() {
 
 	app := cli.NewApp()
@@ -62,8 +93,9 @@ func main() {
 					Usage: "list merge requests",
 					Flags: flags,
 					Action: func(c *cli.Context) {
-						remote := c.String("remote")
-						dir := getGitDir(c.String("git-dir"))
+						_ = needToken(c)
+						server := needGitlab(c)
+						remoteUrl := needRemoteUrl(c)
 
 						format := c.String("format")
 						if format == "" {
@@ -75,17 +107,7 @@ func main() {
 							return
 						}
 
-						git := gitDir(dir)
-						remoteUrl, err := git.getRemoteUrl(remote)
-						if nil != err {
-							log.Fatal(err)
-						}
-
-						r := parseRemote(remoteUrl)
-
-						server := newGitlab(r.base, c.String("token"))
-
-						mergeRequests, err := server.querymergeRequests(r.path)
+						mergeRequests, err := server.querymergeRequests(remoteUrl.path)
 						if nil != err {
 							log.Fatal(err)
 						}

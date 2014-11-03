@@ -24,6 +24,10 @@ func newGitlab(host, token string) gitlab {
 	return gitlab{"http", host, "/api/v3", token}
 }
 
+func (g gitlab) getPrivateTokenUrl() string {
+	return g.scheme + "://" + g.host + "/profile/account"
+}
+
 func (g gitlab) getApiUrl(pathSegments ...string) string {
 	return g.scheme + "://" + g.host + g.apiPath + "/" + strings.Join(pathSegments, "/") + "?private_token=" + g.token
 }
