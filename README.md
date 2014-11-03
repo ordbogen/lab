@@ -30,6 +30,7 @@ $ lab mr
 
 ## IDEAS
 
+- `$ lab mr browse` -> Open the current merge-request (current branch on the left)
 - `$ lab browse` -> open project page
 - Show url for private token is missing
 - Fancy rendering/interactivity via [github.com/nsf/termbox-go](https://github.com/nsf/termbox-go)
