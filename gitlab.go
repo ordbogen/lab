@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"strings"
 )
 
@@ -18,6 +19,10 @@ type gitlab struct {
 	host    string
 	apiPath string
 	token   string
+}
+
+func (g gitlab) browseProject(path string) {
+	exec.Command("xdg-open", g.scheme+"://"+g.host+"/"+strings.TrimPrefix(path, "/")).Run()
 }
 
 func newGitlab(host, token string) gitlab {

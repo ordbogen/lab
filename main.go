@@ -53,6 +53,38 @@ func main() {
 
 	app.Commands = []cli.Command{
 		{
+			Name:  "browse",
+			Usage: "Open project homepage",
+			Flags: flags,
+			Action: func(c *cli.Context) {
+				// TODO, cross-platform xdg-open: https://github.com/skratchdot/open-golang
+				remote := c.String("remote")
+				dir := getGitDir(c.String("git-dir"))
+
+				format := c.String("format")
+				if format == "" {
+					format = MergeRequestListTemplate
+				}
+
+				if format == "help" {
+					fmt.Println(MergeRequestListTemplate)
+					return
+				}
+
+				git := gitDir(dir)
+				remoteUrl, err := git.getRemoteUrl(remote)
+				if nil != err {
+					log.Fatal(err)
+				}
+
+				r := parseRemote(remoteUrl)
+
+				server := newGitlab(r.base, c.String("token"))
+
+				server.browseProject(r.path)
+			},
+		},
+		{
 			Name:      "merge-request",
 			ShortName: "mr",
 			Usage:     "do something with merge requests",
