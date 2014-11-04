@@ -15,6 +15,11 @@ type gitRemote struct {
 
 type gitDir string
 
+/// Get working directory
+func (here gitDir) Getwd() (string, error) {
+	return filepath.Abs(strings.TrimSuffix(string(here), ".git"))
+}
+
 type ErrUnknownRemote string
 
 func (e ErrUnknownRemote) Error() string {
@@ -38,13 +43,15 @@ func getRemoteUrlFromRemoteVOutput(remoteName string, output []byte) (string, er
 
 func (here gitDir) checkout(arg string) error {
 	// Get working directory
-	wd, err := filepath.Abs(string(here))
+	wd, err := here.Getwd()
 	if nil != err {
 		return err
 	}
 
 	// Fetch first
-	fetchCmd := exec.Command("git", "--git-dir", string(here), "fetch")
+	fetchCmd := exec.Command("git", "fetch")
+	fmt.Println()
+	fmt.Println(fetchCmd.Path, fetchCmd.Args)
 	fetchCmd.Dir = wd
 	fetchCmd.Stdout = os.Stdout
 	fetchCmd.Stdin = os.Stdin
@@ -53,7 +60,8 @@ func (here gitDir) checkout(arg string) error {
 		return err
 	}
 
-	cmd := exec.Command("git", "--git-dir", string(here), "checkout", arg)
+	cmd := exec.Command("git", "checkout", arg)
+	fmt.Println(cmd.Path, cmd.Args)
 	cmd.Dir = wd
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
