@@ -18,6 +18,9 @@ const MergeRequestListTemplate string = `
 ---
 `
 
+const MergeRequestCheckoutListTemplate string = `{{ .Title }}
+`
+
 func getGitDir(given string) string {
 	var err error
 	if given == "" {
@@ -48,6 +51,16 @@ func browse(url string) {
 		// text
 		syscall.Exec("/usr/bin/www-browser", []string{"www-browser", url}, os.Environ())
 	}
+}
+
+/// Get gitlab merge requests or fail!
+func needMergeRequests(c *cli.Context) ([]mergeRequest, error) {
+	_ = needToken(c)
+	server := needGitlab(c)
+	remoteUrl := needRemoteUrl(c)
+	state := c.String("state")
+
+	return server.queryMergeRequests(remoteUrl.path, state)
 }
 
 /// Get gitlab url or fail!
@@ -137,25 +150,22 @@ func main() {
 		{
 			Name:      "merge-request",
 			ShortName: "mr",
-			Usage:     "do something with merge requests",
 			Subcommands: []cli.Command{
 				{
 					Name:  "browse",
 					Usage: "Browse the current merge request.",
 					Flags: mergeRequestFlags,
 					Action: func(c *cli.Context) {
-						_ = needToken(c)
 						server := needGitlab(c)
 						remoteUrl := needRemoteUrl(c)
 						gitDir := needGitDir(c)
-						state := c.String("state")
 
 						currentBranch, err := gitDir.getCurrentBranch()
 						if nil != err {
 							log.Fatal(err)
 						}
 
-						mergeRequests, err := server.queryMergeRequests(remoteUrl.path, state)
+						mergeRequests, err := needMergeRequests(c)
 						if nil != err {
 							log.Fatal(err)
 						}
@@ -172,13 +182,13 @@ func main() {
 				},
 				{
 					Name:  "list",
-					Usage: "list merge requests",
+					Usage: "List merge requests",
 					Flags: mergeRequestFlags,
 					Action: func(c *cli.Context) {
-						_ = needToken(c)
-						server := needGitlab(c)
-						remoteUrl := needRemoteUrl(c)
-						state := c.String("state")
+						mergeRequests, err := needMergeRequests(c)
+						if nil != err {
+							log.Fatal(err)
+						}
 
 						format := c.String("format")
 						if format == "" {
@@ -188,11 +198,6 @@ func main() {
 						if format == "help" {
 							fmt.Println(MergeRequestListTemplate)
 							return
-						}
-
-						mergeRequests, err := server.queryMergeRequests(remoteUrl.path, state)
-						if nil != err {
-							log.Fatal(err)
 						}
 
 						tmpl := template.New("default-merge-request")
@@ -206,6 +211,65 @@ func main() {
 							if err != nil {
 								log.Fatal(err)
 							}
+						}
+					},
+				},
+				{
+					Name:  "checkout",
+					Usage: "Checkout branch from merge request",
+					Flags: mergeRequestFlags,
+					Action: func(c *cli.Context) {
+						_ = needToken(c)
+						server := needGitlab(c)
+						remoteUrl := needRemoteUrl(c)
+						state := c.String("state")
+
+						mergeRequests, err := server.queryMergeRequests(remoteUrl.path, state)
+						if nil != err {
+							log.Fatal(err)
+						}
+
+						format := c.String("format")
+						if format == "" {
+							format = MergeRequestCheckoutListTemplate
+						}
+						tmpl := template.New("default-merge-request-list-template")
+						tmpl, err = tmpl.Parse(format)
+						if nil != err {
+							log.Fatal(err)
+						}
+
+						for i, request := range mergeRequests {
+							fmt.Fprintf(os.Stdout, "%d: ", i)
+							err = tmpl.Execute(os.Stdout, request)
+							if err != nil {
+								log.Fatal(err)
+							}
+						}
+
+						// Prompt for id
+						var mergeRequest mergeRequest
+						for {
+							fmt.Printf("Select a merge request: ")
+							var id int
+							_, err = fmt.Scanf("%d", &id)
+							if nil != err {
+								continue
+							}
+							if id > len(mergeRequests)-1 {
+								continue
+							}
+
+							mergeRequest = mergeRequests[id]
+							break
+						}
+
+						fmt.Printf("Checkout out: \"%s\"...", mergeRequest.SourceBranch)
+						gitDir := needGitDir(c)
+
+						err = gitDir.checkout(mergeRequest.SourceBranch)
+						if nil != err {
+							log.Fatal(err)
 						}
 					},
 				},
