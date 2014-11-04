@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -32,6 +34,30 @@ func getRemoteUrlFromRemoteVOutput(remoteName string, output []byte) (string, er
 	}
 
 	return "", ErrUnknownRemote(remoteName)
+}
+
+func (here gitDir) checkout(arg string) error {
+	// Get working directory
+	wd, err := filepath.Abs(string(here))
+	if nil != err {
+		return err
+	}
+
+	// Fetch first
+	fetchCmd := exec.Command("git", "--git-dir", string(here), "fetch")
+	fetchCmd.Dir = wd
+	fetchCmd.Stdout = os.Stdout
+	fetchCmd.Stdin = os.Stdin
+	err = fetchCmd.Run()
+	if nil != err {
+		return err
+	}
+
+	cmd := exec.Command("git", "--git-dir", string(here), "checkout", arg)
+	cmd.Dir = wd
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
 func (here gitDir) getCurrentBranch() (string, error) {
