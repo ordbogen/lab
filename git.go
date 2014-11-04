@@ -50,8 +50,6 @@ func (here gitDir) checkout(arg string) error {
 
 	// Fetch first
 	fetchCmd := exec.Command("git", "fetch")
-	fmt.Println()
-	fmt.Println(fetchCmd.Path, fetchCmd.Args)
 	fetchCmd.Dir = wd
 	fetchCmd.Stdout = os.Stdout
 	fetchCmd.Stdin = os.Stdin
@@ -61,7 +59,6 @@ func (here gitDir) checkout(arg string) error {
 	}
 
 	cmd := exec.Command("git", "checkout", arg)
-	fmt.Println(cmd.Path, cmd.Args)
 	cmd.Dir = wd
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
