@@ -3,22 +3,59 @@ package main
 import (
 	"fmt"
 	"github.com/codegangsta/cli"
+	"github.com/fatih/color"
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 	"text/template"
 )
 
 const MergeRequestListTemplate string = `
-# {{ .Title }}
+{{ blue "#" }}{{ itoa .Iid | yellow }} {{ .Title | green | bold }}
+{{ green .SourceBranch }} -> {{ red .TargetBranch }}
 
-{{ .Description}}
----
+{{ .Description }}
+
 `
 
-const MergeRequestCheckoutListTemplate string = `{{ .Title }}
+var TermTemplateFuncMap map[string]interface{}
+
+type formatFunc func(string, ...interface{}) string
+
+func init() {
+
+	// Setup color functions for text/template
+	colorFuncs := map[string]formatFunc{
+		"green":   color.GreenString,
+		"red":     color.RedString,
+		"yellow":  color.YellowString,
+		"white":   color.WhiteString,
+		"cyan":    color.CyanString,
+		"black":   color.BlackString,
+		"blue":    color.BlueString,
+		"magenta": color.MagentaString,
+	}
+	m := map[string]interface{}{
+		"bold": func(input string) string {
+			return color.New(color.Bold).SprintFunc()(input)
+		},
+		"itoa": strconv.Itoa,
+	}
+	for c, fun := range colorFuncs {
+		m[c] = func(finner formatFunc) func(string) string {
+			return func(input string) string {
+				return finner(input)
+			}
+		}(fun)
+	}
+
+	TermTemplateFuncMap = m
+}
+
+const MergeRequestCheckoutListTemplate string = `{{ green .Title }}
 `
 
 func getGitDir(given string) string {
@@ -201,6 +238,7 @@ func main() {
 						}
 
 						tmpl := template.New("default-merge-request")
+						tmpl.Funcs(TermTemplateFuncMap)
 						tmpl, err = tmpl.Parse(format)
 						if nil != err {
 							log.Fatal(err)
@@ -234,13 +272,14 @@ func main() {
 							format = MergeRequestCheckoutListTemplate
 						}
 						tmpl := template.New("default-merge-request-list-template")
+						tmpl.Funcs(TermTemplateFuncMap)
 						tmpl, err = tmpl.Parse(format)
 						if nil != err {
 							log.Fatal(err)
 						}
 
 						for i, request := range mergeRequests {
-							fmt.Fprintf(os.Stdout, "%d: ", i)
+							fmt.Fprintf(os.Stdout, color.RedString("%%d: "), i)
 							err = tmpl.Execute(os.Stdout, request)
 							if err != nil {
 								log.Fatal(err)
