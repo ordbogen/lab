@@ -34,6 +34,24 @@ func getRemoteUrlFromRemoteVOutput(remoteName string, output []byte) (string, er
 	return "", ErrUnknownRemote(remoteName)
 }
 
+func (here gitDir) getCurrentBranch() (string, error) {
+	cmd := exec.Command("git", "--git-dir", string(here), "branch")
+	output, err := cmd.CombinedOutput()
+
+	if nil != err {
+		return "", err
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "* ") {
+			return strings.TrimPrefix(line, "* "), nil
+		}
+	}
+
+	return "", fmt.Errorf("Could not find current branch in %s\n", here)
+}
+
 func parseRemote(remoteAddr string) (remote gitRemote) {
 	// Strip user info
 	if atIndex := strings.IndexByte(remoteAddr, '@'); atIndex >= 0 {

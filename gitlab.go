@@ -5,13 +5,20 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
 type mergeRequest struct {
-	Title       string `json:title`
-	Description string `json:description`
+	Id           int    `json:"id"`
+	Iid          int    `json:"iid"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	SourceBranch string `json:"source_branch"`
+	TargetBranch string `json:"target_branch"`
 }
+
+const MERGE_REQUEST_STATE_OPENED string = "opened"
 
 type gitlab struct {
 	scheme  string
@@ -20,8 +27,22 @@ type gitlab struct {
 	token   string
 }
 
+func (g gitlab) getProjectUrl(path string) string {
+	return g.scheme + "://" + g.host + "/" + strings.TrimPrefix(path, "/")
+}
+
+func (g gitlab) getMergeRequestUrl(projectId string, mergeRequestId int) string {
+	projectId, _ = url.QueryUnescape(projectId)
+	projectId = strings.Trim(projectId, "/")
+	return g.scheme + "://" + g.host + "/" + projectId + "/merge_requests/" + strconv.Itoa(mergeRequestId)
+}
+
 func newGitlab(host, token string) gitlab {
 	return gitlab{"http", host, "/api/v3", token}
+}
+
+func (g gitlab) getPrivateTokenUrl() string {
+	return g.scheme + "://" + g.host + "/profile/account"
 }
 
 func (g gitlab) getApiUrl(pathSegments ...string) string {
@@ -32,15 +53,19 @@ func (g gitlab) getOpaqueApiUrl(pathSegments ...string) string {
 	return "//" + g.host + g.apiPath + "/" + strings.Join(pathSegments, "/") + "?private_token=" + g.token
 }
 
-func (g gitlab) querymergeRequests(projectId string) ([]mergeRequest, error) {
-	addr := g.getApiUrl("projects", url.QueryEscape(projectId), "merge_requests")
+func (g gitlab) queryMergeRequests(projectId string, state string) ([]mergeRequest, error) {
+
+	if state == "" {
+		state = MERGE_REQUEST_STATE_OPENED
+	}
+	addr := g.getApiUrl("projects", url.QueryEscape(projectId), "merge_requests") + "&state=" + state
 
 	req, err := http.NewRequest("GET", addr, nil)
 	req.URL = &url.URL{
 		Scheme: g.scheme,
 		Host:   g.host,
 		// Use opaque url to preserve "%2F"
-		Opaque: g.getOpaqueApiUrl("projects", url.QueryEscape(projectId), "merge_requests"),
+		Opaque: g.getOpaqueApiUrl("projects", url.QueryEscape(projectId), "merge_requests") + "&state=" + state,
 	}
 
 	client := http.Client{}

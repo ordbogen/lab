@@ -6,6 +6,13 @@ Gitlab command line tool
 
 `$ go get -u github.com/educas/lab`
 
+Export your gitlab private token as environment variable: `LAB_PRIVATE_TOKEN`
+
+```bash
+# Get from gitlab.server.com/profile/account
+$ export LAB_PRIVATE_TOKEN my-private-token
+```
+
 ## USAGE
 
 ```
@@ -30,12 +37,12 @@ $ lab mr
 
 ## IDEAS
 
-- `$ lab mr browse` -> Open the current merge-request (current branch on the left)
-- `$ lab browse` -> open project page
-- Show url for private token is missing
-- Fancy rendering/interactivity via [github.com/nsf/termbox-go](https://github.com/nsf/termbox-go)
-- Use goconvey for testing
-- Web interface
+- [x] `$ lab mr browse` -> Open the current merge-request (current branch on the left)
+- [x] `$ lab browse` -> open project page
+- [x] Show url for private token is missing
+- [ ] Fancy rendering/interactivity via [github.com/nsf/termbox-go](https://github.com/nsf/termbox-go)
+- [ ] Use goconvey for testing
+- [ ] Web interface
 
 ## LICENSE
  
