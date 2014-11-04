@@ -205,7 +205,7 @@ func main() {
 						if c.Args().First() != "" {
 							mergeRequestId, err := strconv.Atoi(c.Args().First())
 							if err != nil {
-								log.Fatalf("%s is not an ID.\n", mergeRequestId)
+								log.Fatalf("You did not provide a valid ID")
 							}
 
 							for _, request := range mergeRequests {
