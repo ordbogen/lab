@@ -190,19 +190,34 @@ func main() {
 			Subcommands: []cli.Command{
 				{
 					Name:  "browse",
-					Usage: "Browse the current merge request.",
+					Usage: "Browse current merge request or by ID.",
 					Flags: mergeRequestFlags,
 					Action: func(c *cli.Context) {
 						server := needGitlab(c)
 						remoteUrl := needRemoteUrl(c)
 						gitDir := needGitDir(c)
 
-						currentBranch, err := gitDir.getCurrentBranch()
+						mergeRequests, err := needMergeRequests(c)
 						if nil != err {
 							log.Fatal(err)
 						}
 
-						mergeRequests, err := needMergeRequests(c)
+						if c.Args().First() != "" {
+							mergeRequestId, err := strconv.Atoi(c.Args().First())
+							if err != nil {
+								log.Fatalf("You did not provide a valid ID")
+							}
+
+							for _, request := range mergeRequests {
+								if request.Iid == mergeRequestId {
+									browse(server.getMergeRequestUrl(remoteUrl.path, mergeRequestId))
+								}
+							}
+
+							log.Fatalf("Unable to find merge request with ID #%d\n", mergeRequestId)
+						}
+
+						currentBranch, err := gitDir.getCurrentBranch()
 						if nil != err {
 							log.Fatal(err)
 						}
