@@ -211,6 +211,7 @@ func main() {
 							for _, request := range mergeRequests {
 								if request.Iid == mergeRequestId {
 									browse(server.getMergeRequestUrl(remoteUrl.path, mergeRequestId))
+									return
 								}
 							}
 
