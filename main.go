@@ -25,6 +25,54 @@ var TermTemplateFuncMap map[string]interface{}
 
 type formatFunc func(string, ...interface{}) string
 
+func promptForMergeRequest(c *cli.Context) *mergeRequest {
+	remoteUrl := needRemoteUrl(c)
+	state := c.String("state")
+	server := needGitlab(c)
+
+	format := c.String("format")
+	if format == "" {
+		format = MergeRequestCheckoutListTemplate
+	}
+	tmpl := template.New("default-merge-request-list-template")
+	tmpl.Funcs(TermTemplateFuncMap)
+	tmpl, err := tmpl.Parse(format)
+	if nil != err {
+		log.Fatal(err)
+	}
+
+	mergeRequests, err := server.queryMergeRequests(remoteUrl.path, state)
+	if nil != err {
+		log.Fatal(err)
+	}
+	for i, request := range mergeRequests {
+		fmt.Fprintf(os.Stdout, color.RedString("%%d: "), i)
+		err = tmpl.Execute(os.Stdout, request)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// Prompt for id
+	var mergeRequest mergeRequest
+	for {
+		fmt.Printf("Select a merge request: ")
+		var id int
+		_, err = fmt.Scanf("%d", &id)
+		if nil != err {
+			continue
+		}
+		if id > len(mergeRequests)-1 {
+			continue
+		}
+
+		mergeRequest = mergeRequests[id]
+		break
+	}
+
+	return &mergeRequest
+}
+
 func init() {
 
 	// Setup color functions for text/template
@@ -234,6 +282,66 @@ func main() {
 					},
 				},
 				{
+					Name:  "diff",
+					Usage: "Diff current merge request or by ID.",
+					Flags: mergeRequestFlags,
+					Action: func(c *cli.Context) {
+						server := needGitlab(c)
+						remoteUrl := needRemoteUrl(c)
+						gitDir := needGitDir(c)
+
+						mergeRequests, err := needMergeRequests(c)
+						if nil != err {
+							log.Fatal(err)
+						}
+
+						if c.Args().First() != "" {
+							mergeRequestId, err := strconv.Atoi(c.Args().First())
+							if err != nil {
+								log.Fatalf("You did not provide a valid ID")
+							}
+
+							for _, request := range mergeRequests {
+								if request.Iid == mergeRequestId {
+									browse(server.getMergeRequestUrl(remoteUrl.path, mergeRequestId))
+									return
+								}
+							}
+
+							log.Fatalf("Unable to find merge request with ID #%d\n", mergeRequestId)
+						}
+
+						currentBranch, err := gitDir.getCurrentBranch()
+						if nil != err {
+							log.Fatal(err)
+						}
+
+						for _, request := range mergeRequests {
+							if request.SourceBranch == currentBranch {
+								gitDir.diff2(request.SourceBranch, request.TargetBranch)
+								return
+							}
+						}
+
+						log.Fatalf("Could not find merge request for branch: %s on project %s\n", currentBranch, remoteUrl.path)
+					},
+				},
+				{
+					Name:  "pick-diff",
+					Usage: "Pick diff from merge requests",
+					Flags: mergeRequestFlags,
+					Action: func(c *cli.Context) {
+						gitDir := needGitDir(c)
+
+						request := promptForMergeRequest(c)
+						if nil == request {
+							return
+						}
+
+						gitDir.diff2(request.SourceBranch, request.TargetBranch)
+					},
+				},
+				{
 					Name:  "list",
 					Usage: "List merge requests",
 					Flags: mergeRequestFlags,
@@ -274,55 +382,15 @@ func main() {
 					Flags: mergeRequestFlags,
 					Action: func(c *cli.Context) {
 						_ = needToken(c)
-						server := needGitlab(c)
-						remoteUrl := needRemoteUrl(c)
-						state := c.String("state")
 
-						mergeRequests, err := server.queryMergeRequests(remoteUrl.path, state)
-						if nil != err {
-							log.Fatal(err)
+						mergeRequest := promptForMergeRequest(c)
+						if mergeRequest == nil {
+							return
 						}
-
-						format := c.String("format")
-						if format == "" {
-							format = MergeRequestCheckoutListTemplate
-						}
-						tmpl := template.New("default-merge-request-list-template")
-						tmpl.Funcs(TermTemplateFuncMap)
-						tmpl, err = tmpl.Parse(format)
-						if nil != err {
-							log.Fatal(err)
-						}
-
-						for i, request := range mergeRequests {
-							fmt.Fprintf(os.Stdout, color.RedString("%%d: "), i)
-							err = tmpl.Execute(os.Stdout, request)
-							if err != nil {
-								log.Fatal(err)
-							}
-						}
-
-						// Prompt for id
-						var mergeRequest mergeRequest
-						for {
-							fmt.Printf("Select a merge request: ")
-							var id int
-							_, err = fmt.Scanf("%d", &id)
-							if nil != err {
-								continue
-							}
-							if id > len(mergeRequests)-1 {
-								continue
-							}
-
-							mergeRequest = mergeRequests[id]
-							break
-						}
-
 						fmt.Printf("Checkout out: \"%s\"...", mergeRequest.SourceBranch)
 						gitDir := needGitDir(c)
 
-						err = gitDir.checkout(mergeRequest.SourceBranch)
+						err := gitDir.checkout(mergeRequest.SourceBranch)
 						if nil != err {
 							log.Fatal(err)
 						}

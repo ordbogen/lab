@@ -65,6 +65,49 @@ func (here gitDir) checkout(arg string) error {
 	return cmd.Run()
 }
 
+func (here gitDir) diff2(left, right string) error {
+	// Get working directory
+	wd, err := here.Getwd()
+	if nil != err {
+		return err
+	}
+
+	remotes := map[string]bool{"origin": true}
+
+	// Left remote?
+	if strings.Contains(left, "/") {
+		leftRemote := strings.Split(left, "/")[0]
+		remotes[leftRemote] = true
+	} else {
+		left = "origin/" + left
+	}
+
+	if strings.Contains(right, "/") {
+		rightRemote := strings.Split(right, "/")[0]
+		remotes[rightRemote] = true
+	} else {
+		right = "origin/" + right
+	}
+
+	for remote, _ := range remotes {
+		// Fetch first
+		fetchCmd := exec.Command("git", "fetch", remote)
+		fetchCmd.Dir = wd
+		fetchCmd.Stdout = os.Stdout
+		fetchCmd.Stdin = os.Stdin
+		err = fetchCmd.Run()
+		if nil != err {
+			return err
+		}
+	}
+
+	cmd := exec.Command("git", "diff", left+".."+right, "--")
+	cmd.Dir = wd
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 func (here gitDir) getCurrentBranch() (string, error) {
 	cmd := exec.Command("git", "--git-dir", string(here), "branch")
 	output, err := cmd.CombinedOutput()
