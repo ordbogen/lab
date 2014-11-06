@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -16,6 +17,12 @@ type mergeRequest struct {
 	Description  string `json:"description"`
 	SourceBranch string `json:"source_branch"`
 	TargetBranch string `json:"target_branch"`
+}
+
+type mergeRequestCreateRequest struct {
+	SourceBranch string `json:"source_branch"`
+	TargetBranch string `json:"target_branch"`
+	Title        string `json:"title"`
 }
 
 const MERGE_REQUEST_STATE_OPENED string = "opened"
@@ -51,6 +58,56 @@ func (g gitlab) getApiUrl(pathSegments ...string) string {
 
 func (g gitlab) getOpaqueApiUrl(pathSegments ...string) string {
 	return "//" + g.host + g.apiPath + "/" + strings.Join(pathSegments, "/") + "?private_token=" + g.token
+}
+
+func (g gitlab) createMergeRequest(projectId, sourceBranch, targetBranch, title string) (*mergeRequest, error) {
+	requestBody := mergeRequestCreateRequest{
+		SourceBranch: sourceBranch,
+		TargetBranch: targetBranch,
+		Title:        title,
+	}
+
+	buffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(buffer)
+	err := encoder.Encode(requestBody)
+	if nil != err {
+		return nil, err
+	}
+
+	addr := g.getApiUrl("projects", url.QueryEscape(projectId), "merge_requests")
+
+	req, err := http.NewRequest("POST", addr, buffer)
+	req.URL = &url.URL{
+		Scheme: g.scheme,
+		Host:   g.host,
+		// Use opaque url to preserve "%2F"
+		Opaque: g.getOpaqueApiUrl("projects", url.QueryEscape(projectId), "merge_requests"),
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if nil != err {
+		return nil, err
+	}
+
+	if resp.StatusCode == 404 {
+		// Duplicate merge request, same source branch
+		return nil, fmt.Errorf("There already exists a merge request for: %s\n", sourceBranch)
+	}
+
+	if resp.StatusCode != 201 {
+		return nil, fmt.Errorf("Expected status 201, got %d\n", resp.StatusCode)
+	}
+
+	responseDecoder := json.NewDecoder(resp.Body)
+	var newMergeRequest mergeRequest
+	err = responseDecoder.Decode(&newMergeRequest)
+	if nil != err {
+		return nil, err
+	}
+
+	return &newMergeRequest, nil
 }
 
 func (g gitlab) queryMergeRequests(projectId string, state string) ([]mergeRequest, error) {

@@ -172,6 +172,41 @@ func main() {
 			ShortName: "mr",
 			Subcommands: []cli.Command{
 				{
+					Name:  "create",
+					Usage: "Create merge request, default target branch: master.",
+					Flags: flags,
+					Action: func(c *cli.Context) {
+						server := needGitlab(c)
+						remoteUrl := needRemoteUrl(c)
+						gitDir := needGitDir(c)
+
+						currentBranch, err := gitDir.getCurrentBranch()
+						if nil != err {
+							log.Fatal(err)
+						}
+						args := c.Args()
+
+						targetBranch := args.First()
+						if targetBranch == "" {
+							targetBranch = "master"
+						}
+
+						title := args.Get(1)
+						if title == "" {
+							// Generate auto title
+							title = strings.Replace(currentBranch, "-", " ", -1)
+							title = strings.Replace(title, "_", " ", -1)
+						}
+
+						createdMergeRequest, err := server.createMergeRequest(remoteUrl.path, currentBranch, targetBranch, title)
+						if nil != err {
+							log.Fatal(err)
+						}
+
+						log.Println("Created merge request:", server.getMergeRequestUrl(remoteUrl.path, createdMergeRequest.Iid))
+					},
+				},
+				{
 					Name:  "browse",
 					Usage: "Browse current merge request or by ID.",
 					Flags: mergeRequestFlags,
