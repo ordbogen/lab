@@ -4,13 +4,10 @@ import (
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/fatih/color"
-	"github.com/skratchdot/open-golang/open"
 	"log"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 	"text/template"
 )
 
@@ -122,20 +119,9 @@ func getGitDir(given string) string {
 /// Browse a url, x or text
 func browse(url string) {
 	log.Printf("Opening \"%s\"...\n", url)
-	if os.Getenv("DISPLAY") != "" {
-		// x session
-		err := open.Run(url)
-		if nil == err {
-			return
-		}
-		// OSX
-		err = exec.Command("open", url).Run()
-		if nil != err {
-			log.Fatal(err)
-		}
-	} else {
-		// text
-		syscall.Exec("/usr/bin/www-browser", []string{"www-browser", url}, os.Environ())
+	err := browsePlatform(url)
+	if nil != err {
+		log.Fatal(err)
 	}
 }
 
