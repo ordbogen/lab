@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/fatih/color"
+	"github.com/skratchdot/open-golang/open"
 	"log"
 	"os"
 	"os/exec"
@@ -123,7 +124,7 @@ func browse(url string) {
 	log.Printf("Opening \"%s\"...\n", url)
 	if os.Getenv("DISPLAY") != "" {
 		// x session
-		err := exec.Command("xdg-open", url).Run()
+		err := open.Run(url)
 		if nil == err {
 			return
 		}
