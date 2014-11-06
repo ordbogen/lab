@@ -8,20 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"text/template"
 )
-
-const MergeRequestListTemplate string = `
-{{ blue "#" }}{{ itoa .Iid | yellow }} {{ .Title | green | bold }}
-{{ green .SourceBranch }} -> {{ red .TargetBranch }}
-
-{{ .Description }}
-
-`
-
-var TermTemplateFuncMap map[string]interface{}
-
-type formatFunc func(string, ...interface{}) string
 
 func promptForMergeRequest(c *cli.Context) *mergeRequest {
 	remoteUrl := needRemoteUrl(c)
@@ -32,9 +19,7 @@ func promptForMergeRequest(c *cli.Context) *mergeRequest {
 	if format == "" {
 		format = MergeRequestCheckoutListTemplate
 	}
-	tmpl := template.New("default-merge-request-list-template")
-	tmpl.Funcs(TermTemplateFuncMap)
-	tmpl, err := tmpl.Parse(format)
+	tmpl, err := newTemplate(c, "default-merge-request-list-template", format)
 	if nil != err {
 		log.Fatal(err)
 	}
@@ -44,8 +29,8 @@ func promptForMergeRequest(c *cli.Context) *mergeRequest {
 		log.Fatal(err)
 	}
 	for i, request := range mergeRequests {
-		fmt.Fprintf(os.Stdout, color.RedString("%%d: "), i)
-		err = tmpl.Execute(os.Stdout, request)
+		fmt.Fprintf(os.Stderr, color.RedString("%%d: "), i)
+		err = tmpl.Execute(os.Stderr, request)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -69,51 +54,6 @@ func promptForMergeRequest(c *cli.Context) *mergeRequest {
 	}
 
 	return &mergeRequest
-}
-
-func init() {
-
-	// Setup color functions for text/template
-	colorFuncs := map[string]formatFunc{
-		"green":   color.GreenString,
-		"red":     color.RedString,
-		"yellow":  color.YellowString,
-		"white":   color.WhiteString,
-		"cyan":    color.CyanString,
-		"black":   color.BlackString,
-		"blue":    color.BlueString,
-		"magenta": color.MagentaString,
-	}
-	m := map[string]interface{}{
-		"bold": func(input string) string {
-			return color.New(color.Bold).SprintFunc()(input)
-		},
-		"itoa": strconv.Itoa,
-	}
-	for c, fun := range colorFuncs {
-		m[c] = func(finner formatFunc) func(string) string {
-			return func(input string) string {
-				return finner(input)
-			}
-		}(fun)
-	}
-
-	TermTemplateFuncMap = m
-}
-
-const MergeRequestCheckoutListTemplate string = `{{ green .Title }}
-`
-
-func getGitDir(given string) string {
-	var err error
-	if given == "" {
-		given, err = os.Getwd()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	return strings.TrimSuffix(given, "/") + "/.git"
 }
 
 /// Browse a url, x or text
@@ -148,8 +88,16 @@ func needGitlab(c *cli.Context) gitlab {
 }
 
 func needGitDir(c *cli.Context) gitDir {
-	dir := getGitDir(c.String("git-dir"))
-	return gitDir(dir)
+	given := c.String("git-dir")
+	var err error
+	if given == "" {
+		given, err = os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	return gitDir(strings.TrimSuffix(given, "/") + "/.git")
 }
 
 /// Get remote url or fail!
@@ -348,9 +296,7 @@ func main() {
 							return
 						}
 
-						tmpl := template.New("default-merge-request")
-						tmpl.Funcs(TermTemplateFuncMap)
-						tmpl, err = tmpl.Parse(format)
+						tmpl, err := newTemplate(c, "default-merge-request", format)
 						if nil != err {
 							log.Fatal(err)
 						}
