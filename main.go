@@ -19,7 +19,7 @@ func promptForMergeRequest(c *cli.Context) *mergeRequest {
 	if format == "" {
 		format = MergeRequestCheckoutListTemplate
 	}
-	tmpl, err := newTemplate(c, "default-merge-request-list-template", format)
+	tmpl, err := newColorTemplate("default-merge-request-list-template", format)
 	if nil != err {
 		log.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func promptForMergeRequest(c *cli.Context) *mergeRequest {
 	// Prompt for id
 	var mergeRequest mergeRequest
 	for {
-		fmt.Printf("Select a merge request: ")
+		fmt.Fprintf(os.Stderr, "Select a merge request: ")
 		var id int
 		_, err = fmt.Scanf("%d", &id)
 		if nil != err {
@@ -296,7 +296,7 @@ func main() {
 							return
 						}
 
-						tmpl, err := newTemplate(c, "default-merge-request", format)
+						tmpl, err := newTemplate("default-merge-request", format, doColors(os.Stdout))
 						if nil != err {
 							log.Fatal(err)
 						}

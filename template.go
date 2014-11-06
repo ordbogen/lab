@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/codegangsta/cli"
+	"github.com/andrew-d/go-termutil"
 	"github.com/fatih/color"
+	"os"
 	"strconv"
 	"text/template"
 )
@@ -20,40 +21,69 @@ const MergeRequestCheckoutListTemplate string = `{{ green .Title }}
 
 type formatFunc func(string, ...interface{}) string
 
-var TermTemplateFuncMap map[string]interface{}
+// Map of colored template funcs: true, and non-colored: false
+var templateFuncs map[bool]template.FuncMap
 
-// Get new template with defaults
-func newTemplate(c *cli.Context, name, format string) (*template.Template, error) {
-
-	if nil == TermTemplateFuncMap {
-		// Setup color functions for text/template
-		colorFuncs := map[string]formatFunc{
-			"green":   color.GreenString,
-			"red":     color.RedString,
-			"yellow":  color.YellowString,
-			"white":   color.WhiteString,
-			"cyan":    color.CyanString,
-			"black":   color.BlackString,
-			"blue":    color.BlueString,
-			"magenta": color.MagentaString,
-		}
-		m := map[string]interface{}{
-			"bold": func(input string) string {
-				return color.New(color.Bold).SprintFunc()(input)
-			},
-			"itoa": strconv.Itoa,
-		}
-		for c, fun := range colorFuncs {
-			m[c] = func(finner formatFunc) func(string) string {
-				return func(input string) string {
-					return finner(input)
-				}
-			}(fun)
-		}
-
-		TermTemplateFuncMap = m
+func init() {
+	templateFuncs = make(map[bool]template.FuncMap)
+	// Setup color functions for text/template
+	colorFuncs := map[string]formatFunc{
+		"green":   color.GreenString,
+		"red":     color.RedString,
+		"yellow":  color.YellowString,
+		"white":   color.WhiteString,
+		"cyan":    color.CyanString,
+		"black":   color.BlackString,
+		"blue":    color.BlueString,
+		"magenta": color.MagentaString,
 	}
+	colorFuncMap := template.FuncMap{
+		"bold": func(input string) string {
+			return color.New(color.Bold).SprintFunc()(input)
+		},
+	}
+	for c, fun := range colorFuncs {
+		colorFuncMap[c] = func(finner formatFunc) func(string) string {
+			return func(input string) string {
+				return finner(input)
+			}
+		}(fun)
+	}
+
+	templateFuncs[true] = colorFuncMap
+
+	monochromeFuncs := make(template.FuncMap)
+	stringIdentity := func(input string) string {
+		return input
+	}
+	for name, _ := range colorFuncMap {
+		monochromeFuncs[name] = stringIdentity
+	}
+	templateFuncs[false] = monochromeFuncs
+
+	// Shared functions
+	for _, b := range []bool{true, false} {
+		templateFuncs[b]["itoa"] = strconv.Itoa
+	}
+}
+
+/// Determine from tty output, whether we should do colors
+func doColors(output *os.File) bool {
+	return termutil.Isatty(output.Fd())
+}
+
+/// Get new template for colored output
+func newColorTemplate(name, format string) (*template.Template, error) {
+	return newTemplate(name, format, true)
+}
+
+/// Get new template with monochrome version of color functions
+func newMonochromeTemplate(name, format string) (*template.Template, error) {
+	return newTemplate(name, format, false)
+}
+
+func newTemplate(name, format string, color bool) (*template.Template, error) {
 	tmpl := template.New(name)
-	tmpl.Funcs(TermTemplateFuncMap)
+	tmpl.Funcs(templateFuncs[color])
 	return tmpl.Parse(format)
 }
