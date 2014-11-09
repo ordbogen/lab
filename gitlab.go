@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -23,6 +24,15 @@ type mergeRequestCreateRequest struct {
 	SourceBranch string `json:"source_branch"`
 	TargetBranch string `json:"target_branch"`
 	Title        string `json:"title"`
+}
+
+type session struct {
+	PrivateToken string `json:"private_token"`
+}
+
+type sessionRequest struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
 }
 
 const MERGE_REQUEST_STATE_OPENED string = "opened"
@@ -53,11 +63,19 @@ func (g gitlab) getPrivateTokenUrl() string {
 }
 
 func (g gitlab) getApiUrl(pathSegments ...string) string {
-	return g.scheme + "://" + g.host + g.apiPath + "/" + strings.Join(pathSegments, "/") + "?private_token=" + g.token
+	return g.getUnauthApiUrl(pathSegments...) + "?private_token=" + g.token
+}
+
+func (g gitlab) getUnauthApiUrl(pathSegments ...string) string {
+	return g.scheme + "://" + g.host + g.apiPath + "/" + strings.Join(pathSegments, "/")
 }
 
 func (g gitlab) getOpaqueApiUrl(pathSegments ...string) string {
-	return "//" + g.host + g.apiPath + "/" + strings.Join(pathSegments, "/") + "?private_token=" + g.token
+	return g.getUnauthOpaqueApiUrl(pathSegments...) + "?private_token=" + g.token
+}
+
+func (g gitlab) getUnauthOpaqueApiUrl(pathSegments ...string) string {
+	return "//" + g.host + g.apiPath + "/" + strings.Join(pathSegments, "/")
 }
 
 func (g gitlab) createMergeRequest(projectId, sourceBranch, targetBranch, title string) (*mergeRequest, error) {
@@ -108,6 +126,52 @@ func (g gitlab) createMergeRequest(projectId, sourceBranch, targetBranch, title 
 	}
 
 	return &newMergeRequest, nil
+}
+
+/// Request session for private token
+func (g gitlab) getSession(login, password string) (*session, error) {
+	requestBody := sessionRequest{
+		Login:    login,
+		Password: password,
+	}
+
+	buffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(buffer)
+	err := encoder.Encode(requestBody)
+	if nil != err {
+		return nil, err
+	}
+
+	addr := g.getUnauthApiUrl("session")
+
+	req, err := http.NewRequest("POST", addr, buffer)
+	req.URL = &url.URL{
+		Scheme: g.scheme,
+		Host:   g.host,
+		// Use opaque url to preserve "%2F"
+		Opaque: g.getUnauthOpaqueApiUrl("session"),
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if nil != err {
+		return nil, err
+	}
+
+	if resp.StatusCode != 201 {
+		return nil, errors.New(resp.Status)
+	}
+
+	responseDecoder := json.NewDecoder(resp.Body)
+	var session session
+	err = responseDecoder.Decode(&session)
+	if nil != err {
+		return nil, err
+	}
+
+	return &session, nil
 }
 
 func (g gitlab) queryMergeRequests(projectId string, state string) ([]mergeRequest, error) {

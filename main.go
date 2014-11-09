@@ -1,14 +1,25 @@
 package main
 
 import (
+	"code.google.com/p/gopass"
 	"fmt"
+	"github.com/BurntSushi/toml"
 	"github.com/codegangsta/cli"
 	"github.com/fatih/color"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
+
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+}
+
+type config struct {
+	privateToken string `toml:"private_token"`
+}
 
 func promptForMergeRequest(c *cli.Context) *mergeRequest {
 	remoteUrl := needRemoteUrl(c)
@@ -84,7 +95,6 @@ func needGitlab(c *cli.Context) gitlab {
 		}
 	}
 	return newGitlab(r.base, c.String("token"))
-
 }
 
 func needGitDir(c *cli.Context) gitDir {
@@ -115,6 +125,52 @@ func needRemoteUrl(c *cli.Context) gitRemote {
 // Get token or fail!
 func needToken(c *cli.Context) string {
 	token := c.String("token")
+	if token == "" {
+		// Try getting token from /.labrc
+		var config config
+		_, err := toml.DecodeFile(filepath.Join(os.Getenv("HOME"), ".labrc"), &config)
+		if err != nil {
+			// ...
+			if os.IsNotExist(err) {
+				// ~/.labrc does not exist, move on
+			} else {
+				log.Fatalf("%T\n", err)
+			}
+		}
+
+		token = config.privateToken
+		if token == "" {
+			// Prompt for private token
+			log.Println("Login to get private token for gitlab")
+			var login string
+			var password string
+			for {
+				log.Print("Login: ")
+				_, err := fmt.Scanf("%s", &login)
+				err = nil
+				if err != nil || login == "" {
+					continue
+				}
+				password, err = gopass.GetPass("Password: ")
+				err = nil
+				if err != nil || password == "" {
+					continue
+				}
+
+				if login != "" && password != "" {
+					break
+				}
+			}
+
+			server := needGitlab(c)
+			session, err := server.getSession(login, password)
+			if err != nil {
+				log.Fatal(err)
+			}
+			token = session.PrivateToken
+		}
+	}
+
 	if token == "" {
 		server := needGitlab(c)
 		log.Fatal(
