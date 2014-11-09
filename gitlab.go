@@ -54,8 +54,8 @@ func (g gitlab) getMergeRequestUrl(projectId string, mergeRequestId int) string 
 	return g.scheme + "://" + g.host + "/" + projectId + "/merge_requests/" + strconv.Itoa(mergeRequestId)
 }
 
-func newGitlab(host, token string) gitlab {
-	return gitlab{"http", host, "/api/v3", token}
+func newGitlab(host string) gitlab {
+	return gitlab{"http", host, "/api/v3", ""}
 }
 
 func (g gitlab) getPrivateTokenUrl() string {

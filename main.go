@@ -18,13 +18,15 @@ func init() {
 }
 
 type config struct {
-	privateToken string `toml:"private_token"`
+	PrivateToken string `toml:"private_token"`
 }
 
 func promptForMergeRequest(c *cli.Context) *mergeRequest {
 	remoteUrl := needRemoteUrl(c)
 	state := c.String("state")
 	server := needGitlab(c)
+	token := needToken(c)
+	server.token = token
 
 	format := c.String("format")
 	if format == "" {
@@ -78,8 +80,10 @@ func browse(url string) {
 
 /// Get gitlab merge requests or fail!
 func needMergeRequests(c *cli.Context) ([]mergeRequest, error) {
-	_ = needToken(c)
+	token := needToken(c)
 	server := needGitlab(c)
+	server.token = token
+
 	remoteUrl := needRemoteUrl(c)
 	state := c.String("state")
 
@@ -94,7 +98,7 @@ func needGitlab(c *cli.Context) gitlab {
 			log.Fatalf("Gitlab server on: \"%s\"? I don't think so\n", r.base)
 		}
 	}
-	return newGitlab(r.base, c.String("token"))
+	return newGitlab(r.base)
 }
 
 func needGitDir(c *cli.Context) gitDir {
@@ -125,10 +129,17 @@ func needRemoteUrl(c *cli.Context) gitRemote {
 // Get token or fail!
 func needToken(c *cli.Context) string {
 	token := c.String("token")
+	gitDir := needGitDir(c)
+	wd, err := gitDir.Getwd()
+	if nil != err {
+		log.Fatal(err)
+	}
+
+	projectLabFile := filepath.Join(wd, ".lab")
 	if token == "" {
-		// Try getting token from /.labrc
+		// Try getting token from $PROJECT/.lab
 		var config config
-		_, err := toml.DecodeFile(filepath.Join(os.Getenv("HOME"), ".labrc"), &config)
+		_, err := toml.DecodeFile(projectLabFile, &config)
 		if err != nil {
 			// ...
 			if os.IsNotExist(err) {
@@ -138,14 +149,14 @@ func needToken(c *cli.Context) string {
 			}
 		}
 
-		token = config.privateToken
+		token = config.PrivateToken
 		if token == "" {
 			// Prompt for private token
-			log.Println("Login to get private token for gitlab")
+			fmt.Fprintln(os.Stderr, "Login to get private token for gitlab")
 			var login string
 			var password string
 			for {
-				log.Print("Login: ")
+				fmt.Fprint(os.Stderr, "Login: ")
 				_, err := fmt.Scanf("%s", &login)
 				err = nil
 				if err != nil || login == "" {
@@ -168,6 +179,20 @@ func needToken(c *cli.Context) string {
 				log.Fatal(err)
 			}
 			token = session.PrivateToken
+
+			// Write to $PROJECT/.lab
+			f, err := os.OpenFile(projectLabFile, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0600)
+			if nil != err {
+				log.Fatal(err)
+			}
+			defer f.Close()
+
+			config.PrivateToken = token
+			enc := toml.NewEncoder(f)
+			err = enc.Encode(config)
+			if nil != err {
+				log.Fatal(err)
+			}
 		}
 	}
 
@@ -233,6 +258,8 @@ func main() {
 					Flags: flags,
 					Action: func(c *cli.Context) {
 						server := needGitlab(c)
+						token := needToken(c)
+						server.token = token
 						remoteUrl := needRemoteUrl(c)
 						gitDir := needGitDir(c)
 
@@ -405,8 +432,6 @@ func main() {
 					Usage: "Checkout branch from merge request",
 					Flags: mergeRequestFlags,
 					Action: func(c *cli.Context) {
-						_ = needToken(c)
-
 						mergeRequest := promptForMergeRequest(c)
 						if mergeRequest == nil {
 							return
