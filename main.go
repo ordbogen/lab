@@ -193,9 +193,11 @@ func needToken(c *cli.Context) string {
 			if nil != err {
 				log.Fatal(err)
 			}
+			fmt.Fprintf(os.Stderr, "Saved private token to %s\n", projectLabFile)
 		}
 	}
 
+	// Use token from arguments or environment
 	if token == "" {
 		server := needGitlab(c)
 		log.Fatal(
@@ -424,6 +426,14 @@ func main() {
 							if err != nil {
 								log.Fatal(err)
 							}
+						}
+
+						countTmpl, err := newTemplate("count", "{{ .count | red | bold }} {{ \"merge requests\" | blue }}\n", true)
+						err = countTmpl.Execute(os.Stderr, map[string]string{
+							"count": strconv.Itoa(len(mergeRequests)),
+						})
+						if nil != err {
+							log.Fatal(err)
 						}
 					},
 				},
