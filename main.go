@@ -373,7 +373,7 @@ func main() {
 
 						for _, request := range mergeRequests {
 							if request.SourceBranch == currentBranch {
-								gitDir.diff2(request.SourceBranch, request.TargetBranch)
+								gitDir.diff2(request.TargetBranch, request.SourceBranch)
 								return
 							}
 						}
@@ -393,7 +393,7 @@ func main() {
 							return
 						}
 
-						gitDir.diff2(request.SourceBranch, request.TargetBranch)
+						gitDir.diff2(request.TargetBranch, request.SourceBranch)
 					},
 				},
 				{
