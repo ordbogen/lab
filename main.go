@@ -128,6 +128,7 @@ func needRemoteUrl(c *cli.Context) gitRemote {
 
 // Get token or fail!
 func needToken(c *cli.Context) string {
+	server := needGitlab(c)
 	token := c.String("token")
 	gitDir := needGitDir(c)
 	wd, err := gitDir.Getwd()
@@ -173,7 +174,6 @@ func needToken(c *cli.Context) string {
 				}
 			}
 
-			server := needGitlab(c)
 			session, err := server.getSession(login, password)
 			if err != nil {
 				log.Fatal(err)
