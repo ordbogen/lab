@@ -19,6 +19,10 @@ const MergeRequestListTemplate string = `
 const MergeRequestCheckoutListTemplate string = `{{ green .Title }}
 `
 
+const FeedTemplate string = `
+{{ magenta "[" | bold  }}{{ .Updated }}{{ magenta "]" | bold  }} {{ .Title }}
+`
+
 type formatFunc func(string, ...interface{}) string
 
 // Map of colored template funcs: true, and non-colored: false
