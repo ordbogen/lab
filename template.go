@@ -20,6 +20,10 @@ const MergeRequestListTemplate string = `
 const MergeRequestCheckoutListTemplate string = `{{ green .Title }}
 `
 
+const FeedTitleTemplate string = `
+{{ .Title | bold  }}
+`
+
 const FeedTemplate string = `
 {{ magenta "[" | bold  }}{{ .Updated | shortDate }}{{ magenta "]" | bold  }} {{ .Title }}
 `
