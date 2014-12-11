@@ -330,7 +330,24 @@ func main() {
 
 				commits := activity.Entries
 
-				// templating
+				// templating - feed title
+
+				formatTitle := c.String("format")
+				if formatTitle == "" {
+					formatTitle = FeedTitleTemplate
+				}
+
+				titleTmpl, err := newTemplate("title-feed", formatTitle, doColors(os.Stdout))
+				if nil != err {
+					log.Fatal(err)
+				}
+
+				err = titleTmpl.Execute(os.Stdout, activity)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				// templating - feed entry
 
 				format := c.String("format")
 				if format == "" {
@@ -342,16 +359,11 @@ func main() {
 					log.Fatal(err)
 				}
 
-				log.Println(activity.Title)
-
 				for _, commit := range commits {
-					commit.Updated.Format("01/02/06 - 15:04")
 					err = tmpl.Execute(os.Stdout, commit)
 					if err != nil {
 						log.Fatal(err)
 					}
-
-					// log.Println(commit.Title)
 				}
 
 				return
