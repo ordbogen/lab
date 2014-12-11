@@ -49,17 +49,13 @@ type gitlab struct {
 }
 
 type activityFeed struct {
-	Id      string        `xml:"id"`
 	Title   string        `xml:"title"`
 	Entries []*feedCommit `xml:"entry"`
 }
 
 type feedCommit struct {
-	Id      string    `xml:"id"`
-	Author  string    `xml:"author"`
 	Title   string    `xml:"title"`
 	Updated time.Time `xml:"updated"`
-	Summary string    `xml:"summary"`
 }
 
 const MERGE_REQUEST_STATE_OPENED string = "opened"
