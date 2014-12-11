@@ -2,6 +2,7 @@ package main
 
 import (
 	"code.google.com/p/gopass"
+	"encoding/xml"
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/codegangsta/cli"
@@ -301,6 +302,59 @@ func main() {
 				remote := needRemoteUrl(c)
 				addr := server.getProjectUrl(remote.path)
 				browse(addr)
+			},
+		},
+		{
+			Name:  "feed",
+			Usage: "Get your GitLab feed",
+			Flags: flags,
+			Action: func(c *cli.Context) {
+				server := needGitlab(c)
+				token := needToken(c)
+				server.token = token
+
+				feedUrl := server.getFeedUrl()
+
+				contents, err := server.buildFeed("GET", feedUrl, nil)
+				if err != nil {
+					log.Fatal("%s", err)
+				}
+
+				var activity activityFeed
+
+				err = xml.Unmarshal(contents, &activity)
+
+				if err != nil {
+					log.Fatal("%s", err)
+				}
+
+				commits := activity.Entries
+
+				// templating
+
+				format := c.String("format")
+				if format == "" {
+					format = FeedTemplate
+				}
+
+				tmpl, err := newTemplate("default-feed", format, doColors(os.Stdout))
+				if nil != err {
+					log.Fatal(err)
+				}
+
+				log.Println(activity.Title)
+
+				for _, commit := range commits {
+					commit.Updated.Format("01/02/06 - 15:04")
+					err = tmpl.Execute(os.Stdout, commit)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					// log.Println(commit.Title)
+				}
+
+				return
 			},
 		},
 		{

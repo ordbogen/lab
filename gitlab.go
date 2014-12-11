@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type mergeRequest struct {
@@ -39,14 +41,29 @@ type sessionRequest struct {
 	Password string `json:"password"`
 }
 
-const MERGE_REQUEST_STATE_OPENED string = "opened"
-
 type gitlab struct {
 	scheme  string
 	host    string
 	apiPath string
 	token   string
 }
+
+type activityFeed struct {
+	Id      string        `xml:"id"`
+	Title   string        `xml:"title"`
+	Entries []*feedCommit `xml:"entry"`
+}
+
+type feedCommit struct {
+	Id      string    `xml:"id"`
+	Author  string    `xml:"author"`
+	Title   string    `xml:"title"`
+	Updated time.Time `xml:"updated"`
+	Summary string    `xml:"summary"`
+}
+
+const MERGE_REQUEST_STATE_OPENED string = "opened"
+const DASHBOARD_FEED_PATH string = "/dashboard.atom"
 
 func (g gitlab) getProjectUrl(path string) string {
 	return g.scheme + "://" + g.host + "/" + strings.TrimPrefix(path, "/")
@@ -64,6 +81,48 @@ func newGitlab(host string) gitlab {
 
 func (g gitlab) getPrivateTokenUrl() string {
 	return g.scheme + "://" + g.host + "/profile/account"
+}
+
+func (g gitlab) getFeedUrl() string {
+	return g.scheme + "://" + g.host + DASHBOARD_FEED_PATH + "?private_token=" + g.token
+}
+
+func (g gitlab) buildFeed(method, url string, body []byte) ([]byte, error) {
+	var req *http.Request
+	var err error
+
+	if body != nil {
+		reader := bytes.NewReader(body)
+		req, err = http.NewRequest(method, url, reader)
+	} else {
+		req, err = http.NewRequest(method, url, nil)
+	}
+
+	if err != nil {
+		panic("Error while building gitlab request")
+	}
+
+	client := &http.Client{}
+
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return nil, fmt.Errorf("client.Do error: %q", err)
+	}
+
+	defer resp.Body.Close()
+
+	contents, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		err = fmt.Errorf("buildFeed failed: <%d> %s", resp.StatusCode, req.URL)
+	}
+
+	return contents, err
 }
 
 func (g gitlab) getApiUrl(pathSegments ...string) string {
