@@ -30,6 +30,10 @@ type session struct {
 	PrivateToken string `json:"private_token"`
 }
 
+type errorResponse struct {
+	Errors []string `json:"error"`
+}
+
 type sessionRequest struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
@@ -115,7 +119,16 @@ func (g gitlab) createMergeRequest(projectId, sourceBranch, targetBranch, title 
 	}
 
 	if resp.StatusCode != 201 {
-		return nil, fmt.Errorf("Expected status 201, got %d\n", resp.StatusCode)
+		// Try getting error response from gitlab
+		responseDecoder := json.NewDecoder(resp.Body)
+		var errorResp errorResponse
+
+		err = responseDecoder.Decode(&errorResp)
+		if nil != err || len(errorResp.Errors) == 0 {
+			return nil, fmt.Errorf("Expected status 201, got %d\n", resp.StatusCode)
+		} else {
+			return nil, fmt.Errorf("Gitlab: %s\n", strings.Join(errorResp.Errors, ", "))
+		}
 	}
 
 	responseDecoder := json.NewDecoder(resp.Body)
