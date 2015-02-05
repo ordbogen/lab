@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"text/template"
+	"time"
 )
 
 const MergeRequestListTemplate string = `
@@ -17,6 +18,14 @@ const MergeRequestListTemplate string = `
 `
 
 const MergeRequestCheckoutListTemplate string = `{{ green .Title }}
+`
+
+const FeedTitleTemplate string = `
+{{ .Title | bold  }}
+`
+
+const FeedTemplate string = `
+{{ magenta "[" | bold  }}{{ .Updated | shortDate }}{{ magenta "]" | bold  }} {{ .Title }}
 `
 
 type formatFunc func(string, ...interface{}) string
@@ -64,6 +73,9 @@ func init() {
 	// Shared functions
 	for _, b := range []bool{true, false} {
 		templateFuncs[b]["itoa"] = strconv.Itoa
+		templateFuncs[b]["shortDate"] = func(t time.Time) string {
+			return t.Format("02/01-06 15:04")
+		}
 	}
 }
 
