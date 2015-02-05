@@ -30,6 +30,10 @@ type session struct {
 	PrivateToken string `json:"private_token"`
 }
 
+type errorResponse struct {
+	Errors []string `json:"error"`
+}
+
 type sessionRequest struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
@@ -115,7 +119,7 @@ func (g gitlab) createMergeRequest(projectId, sourceBranch, targetBranch, title 
 	}
 
 	if resp.StatusCode != 201 {
-		return nil, fmt.Errorf("Expected status 201, got %d\n", resp.StatusCode)
+		return nil, g.getErrorFromResponse(resp)
 	}
 
 	responseDecoder := json.NewDecoder(resp.Body)
@@ -126,6 +130,19 @@ func (g gitlab) createMergeRequest(projectId, sourceBranch, targetBranch, title 
 	}
 
 	return &newMergeRequest, nil
+}
+
+func (g gitlab) getErrorFromResponse(resp *http.Response) error {
+	// Try getting error response from gitlab
+	responseDecoder := json.NewDecoder(resp.Body)
+	var errorResp errorResponse
+
+	err := responseDecoder.Decode(&errorResp)
+	if nil != err || len(errorResp.Errors) == 0 {
+		return fmt.Errorf("Expected status 201, got %d\n", resp.StatusCode)
+	} else {
+		return fmt.Errorf("Gitlab: %s\n", strings.Join(errorResp.Errors, ", "))
+	}
 }
 
 /// Request session for private token
@@ -217,4 +234,43 @@ func (g gitlab) queryMergeRequests(projectId string, state string) ([]mergeReque
 	}
 
 	return mergeRequests, nil
+}
+
+func (g gitlab) acceptMergeRequest(projectId string, mergeRequestId int) error {
+
+	addr := g.getApiUrl(
+		"projects",
+		url.QueryEscape(projectId),
+		"merge_request",
+		url.QueryEscape(strconv.Itoa(mergeRequestId)),
+		"merge",
+	)
+
+	req, err := http.NewRequest("PUT", addr, nil)
+	req.URL = &url.URL{
+		Scheme: g.scheme,
+		Host:   g.host,
+		// Use opaque url to preserve "%2F"
+		Opaque: g.getOpaqueApiUrl("projects", url.QueryEscape(projectId), "merge_request", strconv.Itoa(mergeRequestId), "merge"),
+	}
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+
+	if nil != err {
+		return err
+	}
+
+	if resp.StatusCode == 404 {
+		if g.token != "" {
+			addr = strings.Replace(addr, g.token, "***", -1)
+		}
+		return fmt.Errorf("404: %s %s\n", req.Method, addr)
+	}
+
+	if resp.StatusCode != 201 {
+		return g.getErrorFromResponse(resp)
+	}
+
+	return nil
 }
