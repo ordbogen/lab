@@ -21,6 +21,57 @@ type config struct {
 	PrivateToken string `toml:"private_token"`
 }
 
+// Create action for a particular merge request, defaulting to the current (by branch)
+func createActionForMergeRequest(callback func(gitlab, string, mergeRequest) error) func(*cli.Context) {
+	return func(c *cli.Context) {
+		server := needGitlab(c)
+		remoteUrl := needRemoteUrl(c)
+		gitDir := needGitDir(c)
+		server.token = needToken(c)
+
+		mergeRequests, err := needMergeRequests(c)
+		if nil != err {
+			log.Fatal(err)
+		}
+
+		if c.Args().First() != "" {
+			mergeRequestId, err := strconv.Atoi(c.Args().First())
+			if err != nil {
+				log.Fatalf("You did not provide a valid ID")
+			}
+
+			for _, request := range mergeRequests {
+				if request.Iid == mergeRequestId {
+					err := callback(server, remoteUrl.path, request)
+					if err != nil {
+						log.Fatal(err)
+					}
+					return
+				}
+			}
+
+			log.Fatalf("Unable to find merge request with ID #%d\n", mergeRequestId)
+		}
+
+		currentBranch, err := gitDir.getCurrentBranch()
+		if nil != err {
+			log.Fatal(err)
+		}
+
+		for _, request := range mergeRequests {
+			if request.SourceBranch == currentBranch {
+				err := callback(server, remoteUrl.path, request)
+				if err != nil {
+					log.Fatal(err)
+				}
+				return
+			}
+		}
+
+		log.Fatalf("Could not find merge request for branch: %s on project %s\n", currentBranch, remoteUrl.path)
+	}
+}
+
 func promptForMergeRequest(c *cli.Context) *mergeRequest {
 	remoteUrl := needRemoteUrl(c)
 	state := c.String("state")
@@ -295,46 +346,23 @@ func main() {
 					Name:  "browse",
 					Usage: "Browse current merge request or by ID.",
 					Flags: mergeRequestFlags,
-					Action: func(c *cli.Context) {
-						server := needGitlab(c)
-						remoteUrl := needRemoteUrl(c)
-						gitDir := needGitDir(c)
-
-						mergeRequests, err := needMergeRequests(c)
+					Action: createActionForMergeRequest(func(server gitlab, projectId string, req mergeRequest) error {
+						browse(server.getMergeRequestUrl(projectId, req.Iid))
+						return nil
+					}),
+				},
+				{
+					Name:  "accept",
+					Usage: "Accept current merge request or by ID.",
+					Flags: mergeRequestFlags,
+					Action: createActionForMergeRequest(func(server gitlab, projectId string, req mergeRequest) error {
+						err := server.acceptMergeRequest(projectId, req.Id)
 						if nil != err {
-							log.Fatal(err)
+							return err
 						}
-
-						if c.Args().First() != "" {
-							mergeRequestId, err := strconv.Atoi(c.Args().First())
-							if err != nil {
-								log.Fatalf("You did not provide a valid ID")
-							}
-
-							for _, request := range mergeRequests {
-								if request.Iid == mergeRequestId {
-									browse(server.getMergeRequestUrl(remoteUrl.path, mergeRequestId))
-									return
-								}
-							}
-
-							log.Fatalf("Unable to find merge request with ID #%d\n", mergeRequestId)
-						}
-
-						currentBranch, err := gitDir.getCurrentBranch()
-						if nil != err {
-							log.Fatal(err)
-						}
-
-						for _, request := range mergeRequests {
-							if request.SourceBranch == currentBranch {
-								browse(server.getMergeRequestUrl(remoteUrl.path, request.Iid))
-								return
-							}
-						}
-
-						log.Fatalf("Could not find merge request for branch: %s on project %s\n", currentBranch, remoteUrl.path)
-					},
+						browse(server.getMergeRequestUrl(projectId, req.Iid))
+						return nil
+					}),
 				},
 				{
 					Name:  "diff",
@@ -358,6 +386,7 @@ func main() {
 
 							for _, request := range mergeRequests {
 								if request.Iid == mergeRequestId {
+									gitDir.diff2(request.TargetBranch, request.SourceBranch)
 									browse(server.getMergeRequestUrl(remoteUrl.path, mergeRequestId))
 									return
 								}
