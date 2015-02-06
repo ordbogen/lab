@@ -274,3 +274,50 @@ func (g gitlab) acceptMergeRequest(projectId string, mergeRequestId int) error {
 
 	return nil
 }
+
+func (g gitlab) doApiRequest(method string, pathSegments ...string) (*http.Response, error) {
+	addr := g.getApiUrl(pathSegments...)
+
+	req, err := http.NewRequest(method, addr, nil)
+
+	if nil != err {
+		return nil, err
+	}
+	req.URL = &url.URL{
+		Scheme: g.scheme,
+		Host:   g.host,
+		// Use opaque url to preserve "%2F"
+		Opaque: g.getOpaqueApiUrl(pathSegments...),
+	}
+
+	client := http.Client{}
+	return client.Do(req)
+}
+
+func (g gitlab) removeBranch(projectId string, branch string) error {
+	resp, err := g.doApiRequest(
+		"DELETE",
+		"projects",
+		url.QueryEscape(projectId),
+		"repository/branches",
+		url.QueryEscape(branch),
+	)
+
+	if nil != err {
+		return err
+	}
+
+	if resp.StatusCode == 404 {
+		return fmt.Errorf(
+			`Could not find branch: "%s" on project: "%s"`,
+			branch,
+			projectId,
+		)
+	}
+
+	if resp.StatusCode != 200 {
+		return g.getErrorFromResponse(resp)
+	}
+
+	return nil
+}

@@ -362,6 +362,14 @@ func main() {
 						if nil != err {
 							return err
 						}
+
+						// Delete source branch
+						log.Println("Removing source branch:", req.SourceBranch)
+						err = server.removeBranch(projectId, req.SourceBranch)
+						if nil != err {
+							return err
+						}
+
 						browse(server.getMergeRequestUrl(projectId, req.Iid))
 						return nil
 					}),
