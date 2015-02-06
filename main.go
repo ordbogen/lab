@@ -339,7 +339,9 @@ func main() {
 							log.Fatal(err)
 						}
 
-						log.Println("Created merge request:", server.getMergeRequestUrl(remoteUrl.path, createdMergeRequest.Iid))
+						addr := server.getMergeRequestUrl(remoteUrl.path, createdMergeRequest.Iid)
+						log.Println("Created merge request:", addr)
+						browse(addr)
 					},
 				},
 				{
