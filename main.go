@@ -266,6 +266,8 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "lab"
 	app.Usage = "Command-line client for Gitlab"
+	app.Author = "@homborg"
+	app.Email = ""
 
 	flags := []cli.Flag{
 		cli.StringFlag{
@@ -304,11 +306,13 @@ func main() {
 		{
 			Name:      "merge-request",
 			ShortName: "mr",
+			Usage:     "Merge requests: create, list, browse, checkout, accept, ...",
 			Subcommands: []cli.Command{
 				{
-					Name:  "create",
-					Usage: "Create merge request, default target branch: master.",
-					Flags: flags,
+					Name:      "create",
+					ShortName: "c",
+					Usage:     "Create merge request, default target branch: master.",
+					Flags:     flags,
 					Action: func(c *cli.Context) {
 						server := needGitlab(c)
 						token := needToken(c)
@@ -343,9 +347,10 @@ func main() {
 					},
 				},
 				{
-					Name:  "browse",
-					Usage: "Browse current merge request or by ID.",
-					Flags: mergeRequestFlags,
+					Name:      "browse",
+					ShortName: "b",
+					Usage:     "Browse current merge request or by ID.",
+					Flags:     mergeRequestFlags,
 					Action: createActionForMergeRequest(func(server gitlab, projectId string, req mergeRequest) error {
 						browse(server.getMergeRequestUrl(projectId, req.Iid))
 						return nil
@@ -426,9 +431,10 @@ func main() {
 					},
 				},
 				{
-					Name:  "list",
-					Usage: "List merge requests",
-					Flags: mergeRequestFlags,
+					Name:      "list",
+					ShortName: "l",
+					Usage:     "List merge requests",
+					Flags:     mergeRequestFlags,
 					Action: func(c *cli.Context) {
 						mergeRequests, err := needMergeRequests(c)
 						if nil != err {
@@ -467,9 +473,10 @@ func main() {
 					},
 				},
 				{
-					Name:  "checkout",
-					Usage: "Checkout branch from merge request",
-					Flags: mergeRequestFlags,
+					Name:      "checkout",
+					ShortName: "co",
+					Usage:     "Checkout branch from merge request",
+					Flags:     mergeRequestFlags,
 					Action: func(c *cli.Context) {
 						mergeRequest := promptForMergeRequest(c)
 						if mergeRequest == nil {
@@ -482,25 +489,6 @@ func main() {
 						if nil != err {
 							log.Fatal(err)
 						}
-					},
-				},
-				{
-					Name:  "create",
-					Usage: "create a merge request",
-					Action: func(c *cli.Context) {
-						log.Fatal(`Create merge request:
-1. lab mr create -> <current-branch>..<lab default branch>
-2. lab mr create <target branch> ->  <current-branch>..<target branch>
-3. lab mr create <source branch>..<target branch> -> <source branch>..<target branch>
-					`)
-					},
-				},
-				{
-					// Accept using the current branch or a given mr id
-					Name:  "accept",
-					Usage: "accept merge request by the current branch",
-					Action: func(c *cli.Context) {
-						log.Fatal("TODO: lab mr accept [<id>]")
 					},
 				},
 			},

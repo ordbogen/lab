@@ -16,23 +16,29 @@ $ export LAB_PRIVATE_TOKEN my-private-token
 ## USAGE
 
 ```
-$ lab mr
+$ lab help
 
-# NAME:
-#    lab merge-request - do something with merge requests
-# 
-# USAGE:
-#    lab merge-request command [command options] [arguments...]
-# 
+# ...
 # COMMANDS:
-#    list		list merge requests
-#    create	create a merge request
-#    accept	accept merge request by the current branch
-#    help, h	Shows a list of commands or help for one command
-#    
-# OPTIONS:
-#    --help, -h	show help
-   
+#    browse             Open project homepage
+#    merge-request, mr  Merge requests: create, list, browse, checkout, accept, ...
+#    help, h            Shows a list of commands or help for one command
+# ...
+
+
+$ lab mr help
+
+# ...
+# COMMANDS:
+#    create, c     Create merge request, default target branch: master.
+#    browse, b     Browse current merge request or by ID.
+#    accept        Accept current merge request or by ID.
+#    diff          Diff current merge request or by ID.
+#    pick-diff     Pick diff from merge requests
+#    list, l       List merge requests
+#    checkout, co  Checkout branch from merge request
+#    help, h       Shows a list of commands or help for one command
+# ...
 ```
 
 ## IDEAS
