@@ -268,7 +268,7 @@ func (g gitlab) acceptMergeRequest(projectId string, mergeRequestId int) error {
 		return fmt.Errorf("404: %s %s\n", req.Method, addr)
 	}
 
-	if resp.StatusCode != 201 {
+	if resp.StatusCode != 200 {
 		return g.getErrorFromResponse(resp)
 	}
 
