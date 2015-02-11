@@ -339,7 +339,9 @@ func main() {
 							log.Fatal(err)
 						}
 
-						log.Println("Created merge request:", server.getMergeRequestUrl(remoteUrl.path, createdMergeRequest.Iid))
+						addr := server.getMergeRequestUrl(remoteUrl.path, createdMergeRequest.Iid)
+						log.Println("Created merge request:", addr)
+						browse(addr)
 					},
 				},
 				{
@@ -360,6 +362,14 @@ func main() {
 						if nil != err {
 							return err
 						}
+
+						// Delete source branch
+						log.Println("Removing source branch:", req.SourceBranch)
+						err = server.removeBranch(projectId, req.SourceBranch)
+						if nil != err {
+							return err
+						}
+
 						browse(server.getMergeRequestUrl(projectId, req.Iid))
 						return nil
 					}),
@@ -482,25 +492,6 @@ func main() {
 						if nil != err {
 							log.Fatal(err)
 						}
-					},
-				},
-				{
-					Name:  "create",
-					Usage: "create a merge request",
-					Action: func(c *cli.Context) {
-						log.Fatal(`Create merge request:
-1. lab mr create -> <current-branch>..<lab default branch>
-2. lab mr create <target branch> ->  <current-branch>..<target branch>
-3. lab mr create <source branch>..<target branch> -> <source branch>..<target branch>
-					`)
-					},
-				},
-				{
-					// Accept using the current branch or a given mr id
-					Name:  "accept",
-					Usage: "accept merge request by the current branch",
-					Action: func(c *cli.Context) {
-						log.Fatal("TODO: lab mr accept [<id>]")
 					},
 				},
 			},
