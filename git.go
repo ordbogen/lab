@@ -58,7 +58,7 @@ func (here gitDir) checkout(arg string) error {
 		return err
 	}
 
-	cmd := exec.Command("git", "checkout", arg)
+	cmd := exec.Command("git", "checkout", "origin/"+arg)
 	cmd.Dir = wd
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
