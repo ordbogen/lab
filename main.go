@@ -322,7 +322,9 @@ func main() {
 
 				var activity activityFeed
 
-				err = xml.Unmarshal(contents, &activity)
+				sanitizedContents := strings.Replace(string(contents), "<img", "&lt;img", -1)
+
+				err = xml.Unmarshal([]byte(sanitizedContents), &activity)
 
 				if err != nil {
 					log.Fatal("%s", err)
