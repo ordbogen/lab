@@ -109,21 +109,21 @@ func (here gitDir) diff2(left, right string) error {
 }
 
 func (here gitDir) getCurrentBranch() (string, error) {
-	cmd := exec.Command("git", "--git-dir", string(here), "branch")
+	cmd := exec.Command("git", "--git-dir", string(here), "name-rev", "--name-only", "HEAD")
 	output, err := cmd.CombinedOutput()
 
 	if nil != err {
 		return "", err
 	}
 
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "* ") {
-			return strings.TrimPrefix(line, "* "), nil
-		}
-	}
+	ref := strings.Trim(string(output), "\n\t ")
 
-	return "", fmt.Errorf("Could not find current branch in %s\n", here)
+	// If ref name, eg. remotes/origin/my-branch
+	if strings.Contains(ref, "/") {
+		refParts := strings.Split(ref, "/")
+		ref = refParts[len(refParts)-1]
+	}
+	return ref, nil
 }
 
 func parseRemote(remoteAddr string) (remote gitRemote) {
