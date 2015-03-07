@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	. "github.com/smartystreets/goconvey/convey"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -47,4 +48,14 @@ func TestGetSession(t *testing.T) {
 	if expectedUser != req.Login {
 		t.Fatalf("Expected password: %q, got %q\n", expectedPassword, req.Password)
 	}
+}
+
+func testGetPrivateTokenUrl(t *testing.T) {
+	Convey("Given a gitlab instance", t, func() {
+		g := newGitlab("1.2.3.4")
+
+		Convey("It should produce a url for obtaining a private token", t, func() {
+			So(g.getPrivateTokenUrl(), ShouldEqual, "http://1.2.3.4/profile/account")
+		})
+	})
 }
