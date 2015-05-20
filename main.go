@@ -2,6 +2,7 @@ package main
 
 import (
 	"code.google.com/p/gopass"
+	"encoding/xml"
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/codegangsta/cli"
@@ -301,6 +302,73 @@ func main() {
 				remote := needRemoteUrl(c)
 				addr := server.getProjectUrl(remote.path)
 				browse(addr)
+			},
+		},
+		{
+			Name:  "feed",
+			Usage: "Get your GitLab feed",
+			Flags: flags,
+			Action: func(c *cli.Context) {
+				server := needGitlab(c)
+				token := needToken(c)
+				server.token = token
+
+				feedUrl := server.getFeedUrl()
+
+				contents, err := server.buildFeed("GET", feedUrl, nil)
+				if err != nil {
+					log.Fatal("%s", err)
+				}
+
+				var activity activityFeed
+
+				sanitizedContents := strings.Replace(string(contents), "<img", "&lt;img", -1)
+
+				err = xml.Unmarshal([]byte(sanitizedContents), &activity)
+
+				if err != nil {
+					log.Fatal("%s", err)
+				}
+
+				commits := activity.Entries
+
+				// templating - feed title
+
+				formatTitle := c.String("format")
+				if formatTitle == "" {
+					formatTitle = FeedTitleTemplate
+				}
+
+				titleTmpl, err := newTemplate("title-feed", formatTitle, doColors(os.Stdout))
+				if nil != err {
+					log.Fatal(err)
+				}
+
+				err = titleTmpl.Execute(os.Stdout, activity)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				// templating - feed entry
+
+				format := c.String("format")
+				if format == "" {
+					format = FeedTemplate
+				}
+
+				tmpl, err := newTemplate("default-feed", format, doColors(os.Stdout))
+				if nil != err {
+					log.Fatal(err)
+				}
+
+				for _, commit := range commits {
+					err = tmpl.Execute(os.Stdout, commit)
+					if err != nil {
+						log.Fatal(err)
+					}
+				}
+
+				return
 			},
 		},
 		{
