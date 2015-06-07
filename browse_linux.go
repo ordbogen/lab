@@ -3,17 +3,25 @@ package main
 // +build !darwin
 
 import (
+	"errors"
+	"log"
 	"os"
 	"os/exec"
-	"syscall"
 )
 
-func browsePlatform(url string) error {
+var NoGUIError error
+
+func init() {
+	NoGUIError = errors.New("No gui. Not browsing.")
+}
+
+// Only browse if there's a display available. No text browser.
+func browseGUIPlatform(url string) error {
 	if os.Getenv("DISPLAY") != "" {
 		// x session
+		log.Printf("Opening \"%s\"...\n", url)
 		return exec.Command("xdg-open", url).Run()
-	} else {
-		// text
-		return syscall.Exec("/usr/bin/www-browser", []string{"www-browser", url}, os.Environ())
 	}
+
+	return NoGUIError
 }

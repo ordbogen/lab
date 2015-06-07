@@ -123,10 +123,14 @@ func promptForMergeRequest(c *cli.Context) *mergeRequest {
 
 /// Browse a url, x or text
 func browse(url string) {
-	log.Printf("Opening \"%s\"...\n", url)
-	err := browsePlatform(url)
+	err := browseGUIPlatform(url)
 	if nil != err {
-		log.Fatal(err)
+		if err == NoGUIError {
+			log.Println(url)
+			log.Println(err.Error())
+		} else {
+			log.Fatal(err)
+		}
 	}
 }
 
