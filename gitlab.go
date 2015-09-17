@@ -32,8 +32,17 @@ type session struct {
 	PrivateToken string `json:"private_token"`
 }
 
+type GitlabError []string
+
+func (g GitlabError) Error() string {
+	return "Gitlab:\n\t - " + strings.Join(g, "\n\t -") + "\n"
+}
+
+// TODO: Handle advanced {"message": {...}} responses:
+// https://github.com/gitlabhq/gitlabhq/tree/master/doc/api#data-validation-and-error-reporting
 type errorResponse struct {
-	Errors []string `json:"error"`
+	Errors  []string        `json:"error"`   // An {"error": ["..."]} is returned, fx when creating a MR from master to master
+	Message json.RawMessage `json:"message"` // "message" kan be a string or a structure
 }
 
 type sessionRequest struct {
@@ -174,7 +183,7 @@ func (g gitlab) createMergeRequest(projectId, sourceBranch, targetBranch, title 
 	}
 
 	if resp.StatusCode != 201 {
-		return nil, g.getErrorFromResponse(resp)
+		return nil, g.getErrorFromResponse(resp, 201)
 	}
 
 	responseDecoder := json.NewDecoder(resp.Body)
@@ -187,17 +196,38 @@ func (g gitlab) createMergeRequest(projectId, sourceBranch, targetBranch, title 
 	return &newMergeRequest, nil
 }
 
-func (g gitlab) getErrorFromResponse(resp *http.Response) error {
+// Try getting gitlab error from gitlab http response
+func (g gitlab) getErrorFromResponse(resp *http.Response, expectedStatusCode int) error {
 	// Try getting error response from gitlab
+	var err error
+
 	responseDecoder := json.NewDecoder(resp.Body)
 	var errorResp errorResponse
 
-	err := responseDecoder.Decode(&errorResp)
-	if nil != err || len(errorResp.Errors) == 0 {
-		return fmt.Errorf("Expected status 201, got %d\n", resp.StatusCode)
-	} else {
-		return fmt.Errorf("Gitlab: %s\n", strings.Join(errorResp.Errors, ", "))
+	err = responseDecoder.Decode(&errorResp)
+
+	if nil == err {
+		// "error" member?
+		if len(errorResp.Errors) > 0 {
+			return GitlabError(errorResp.Errors)
+		}
+
+		// "message" string member?
+		var message string
+		err = json.Unmarshal(errorResp.Message, &message)
+		message = strings.TrimSpace(message)
+		if nil == err && "" != message {
+			return GitlabError([]string{message})
+		}
+
+		// "message" member other than string?
+		message = string(errorResp.Message)
+		if "" != message {
+			return GitlabError([]string{message})
+		}
 	}
+
+	return fmt.Errorf("Expected status %d, got %d\n", expectedStatusCode, resp.StatusCode)
 }
 
 /// Request session for private token
@@ -247,7 +277,6 @@ func (g gitlab) getSession(login, password string) (*session, error) {
 }
 
 func (g gitlab) queryMergeRequests(projectId string, state string) ([]mergeRequest, error) {
-
 	if state == "" {
 		state = MERGE_REQUEST_STATE_OPENED
 	}
@@ -275,7 +304,7 @@ func (g gitlab) queryMergeRequests(projectId string, state string) ([]mergeReque
 		return nil, fmt.Errorf("404: %s\n", addr)
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf(resp.Status)
+		return nil, g.getErrorFromResponse(resp, 200)
 	}
 
 	var mergeRequests []mergeRequest
@@ -324,7 +353,7 @@ func (g gitlab) acceptMergeRequest(projectId string, mergeRequestId int) error {
 	}
 
 	if resp.StatusCode != 200 {
-		return g.getErrorFromResponse(resp)
+		return g.getErrorFromResponse(resp, 200)
 	}
 
 	return nil
@@ -371,7 +400,7 @@ func (g gitlab) removeBranch(projectId string, branch string) error {
 	}
 
 	if resp.StatusCode != 200 {
-		return g.getErrorFromResponse(resp)
+		return g.getErrorFromResponse(resp, 200)
 	}
 
 	return nil
