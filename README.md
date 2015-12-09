@@ -4,7 +4,7 @@ Gitlab command line tool
 
 ## INSTALLATION
 
-`$ go get -u github.com/educas/lab`
+`$ go get -u github.com/ordbogen/lab`
 
 Export your gitlab private token as environment variable: `LAB_PRIVATE_TOKEN`
 
