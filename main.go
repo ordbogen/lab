@@ -1,12 +1,12 @@
 package main
 
 import (
-	"code.google.com/p/gopass"
 	"encoding/xml"
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/codegangsta/cli"
 	"github.com/fatih/color"
+	"github.com/stackengine/gopass"
 	"log"
 	"os"
 	"path/filepath"
